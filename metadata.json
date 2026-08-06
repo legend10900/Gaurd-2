@@ -1,0 +1,6 @@
+{
+  "name": "GuardShield Security",
+  "description": "Comprehensive Android security suite featuring real-time antivirus scanning, junk cache cleaner, app locker, permission analyzer, and Wi-Fi safety scanner.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
