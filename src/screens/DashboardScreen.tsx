@@ -125,7 +125,7 @@ export default function DashboardScreen({ onNavigate }: DashboardScreenProps) {
           icon={Fish}
           badgeText="Phishing Guard"
           accentColor="#00ffff"
-          onClick={() => onNavigate('unimplemented')}
+          onClick={() => onNavigate('phishing')}
         />
         <CyberModuleCard
           title="Wi-Fi & Network Guard"
@@ -133,7 +133,7 @@ export default function DashboardScreen({ onNavigate }: DashboardScreenProps) {
           icon={Wifi}
           badgeText="Network Audit"
           accentColor="#00e676"
-          onClick={() => onNavigate('unimplemented')}
+          onClick={() => onNavigate('networkguard')}
         />
         <CyberModuleCard
           title="Battery & Thermal Monitor"
@@ -157,7 +157,7 @@ export default function DashboardScreen({ onNavigate }: DashboardScreenProps) {
           icon={Lock}
           badgeText="Privacy"
           accentColor="#00b3b3"
-          onClick={() => onNavigate('unimplemented')}
+          onClick={() => onNavigate('applock')}
         />
         <CyberModuleCard
           title="Data Breach Monitor"

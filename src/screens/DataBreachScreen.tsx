@@ -28,7 +28,8 @@ export default function DataBreachScreen({ onNavigate }: DataBreachScreenProps) 
     setIsSearching(true);
     setHasSearched(false);
     
-    fetch("/api/breach", {
+    const apiUrl = import.meta.env.VITE_API_URL || "https://gaurdshield-2.onrender.com";
+    fetch(`${apiUrl}/api/breach`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email })

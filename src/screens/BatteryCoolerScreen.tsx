@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Thermometer, ThermometerSnowflake, Activity } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Thermometer, ThermometerSnowflake, Activity, Battery } from 'lucide-react';
+import { Device, BatteryInfo } from '@capacitor/device';
 import CyberHeader from '../components/CyberHeader';
 import { Screen } from '../App';
 
@@ -11,6 +12,11 @@ export default function BatteryCoolerScreen({ onNavigate }: BatteryCoolerScreenP
   const [temperature, setTemperature] = useState(38.5);
   const [isCooling, setIsCooling] = useState(false);
   const [cooled, setCooled] = useState(false);
+  const [batteryInfo, setBatteryInfo] = useState<BatteryInfo | null>(null);
+
+  useEffect(() => {
+    Device.getBatteryInfo().then(info => setBatteryInfo(info));
+  }, []);
 
   const startCooling = () => {
     setIsCooling(true);
@@ -75,6 +81,14 @@ export default function BatteryCoolerScreen({ onNavigate }: BatteryCoolerScreenP
         <h3 className="text-white font-bold text-lg mb-2 z-10">
           {cooled ? "Thermal Load Optimal" : isHot ? "Elevated Thermal Load" : "Temperature Normal"}
         </h3>
+        {batteryInfo && (
+          <div className="flex items-center gap-2 mb-2 z-10 bg-gray-800/50 px-3 py-1 rounded-full border border-gray-700">
+            <Battery size={16} className={batteryInfo.isCharging ? 'text-cyber-green' : 'text-gray-400'} />
+            <span className="text-sm font-mono text-gray-300">
+              {Math.round((batteryInfo.batteryLevel || 0) * 100)}% {batteryInfo.isCharging ? '(Charging)' : ''}
+            </span>
+          </div>
+        )}
         <p className="text-gray-400 text-center text-sm mb-8 max-w-xs z-10">
           Monitor CPU/Battery heat and forcefully sleep background apps to reduce thermal stress.
         </p>
