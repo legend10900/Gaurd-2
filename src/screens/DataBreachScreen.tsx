@@ -7,10 +7,19 @@ interface DataBreachScreenProps {
   onNavigate: (screen: Screen) => void;
 }
 
+interface Breach {
+  source: string;
+  date: string;
+  description: string;
+  compromised_data: string[];
+}
+
 export default function DataBreachScreen({ onNavigate }: DataBreachScreenProps) {
   const [email, setEmail] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [isBreached, setIsBreached] = useState(false);
+  const [breaches, setBreaches] = useState<Breach[]>([]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,14 +28,25 @@ export default function DataBreachScreen({ onNavigate }: DataBreachScreenProps) 
     setIsSearching(true);
     setHasSearched(false);
     
-    setTimeout(() => {
-      setIsSearching(false);
-      setHasSearched(true);
-    }, 2000);
+    fetch("/api/breach", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email })
+    })
+      .then(res => res.json())
+      .then(data => {
+        setIsSearching(false);
+        setHasSearched(true);
+        setIsBreached(data.breached);
+        setBreaches(data.breaches || []);
+      })
+      .catch(err => {
+        console.error("Breach check error", err);
+        setIsSearching(false);
+        setHasSearched(true);
+        setIsBreached(false);
+      });
   };
-
-  // Mock results for demo
-  const isBreached = email.toLowerCase() === 'test@example.com' || email.length > 15;
 
   return (
     <div className="flex flex-col p-4 md:p-6 h-screen overflow-y-auto pb-24">
@@ -42,7 +62,7 @@ export default function DataBreachScreen({ onNavigate }: DataBreachScreenProps) 
           <h3 className="text-white font-bold text-lg">Check Email Exposure</h3>
         </div>
         <p className="text-gray-400 text-sm mb-6">
-          Enter your email address to query across 10+ Billion leaked records from known data breaches and dark web dumps.
+          Enter your email address to query across leaked records from known data breaches and dark web dumps. (Try test@example.com for a demo)
         </p>
 
         <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-3">
@@ -87,38 +107,28 @@ export default function DataBreachScreen({ onNavigate }: DataBreachScreenProps) 
                   <h3 className="text-white font-bold text-xl">Breach Detected!</h3>
                 </div>
                 <p className="text-gray-300 text-sm mb-6">
-                  The email <span className="text-cyber-yellow font-bold">{email}</span> was found in 2 known data breaches.
+                  The email <span className="text-cyber-yellow font-bold">{email}</span> was found in {breaches.length} known data breaches.
                 </p>
 
                 <div className="space-y-4">
-                  <div className="bg-cyber-navy p-4 rounded-xl border border-gray-800">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="text-white font-bold">SocialMediaCorp Leak</h4>
-                      <span className="text-xs text-gray-500">Aug 2023</span>
+                  {breaches.map((breach, idx) => (
+                    <div key={idx} className="bg-cyber-navy p-4 rounded-xl border border-gray-800">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="text-white font-bold">{breach.source}</h4>
+                        <span className="text-xs text-gray-500">{breach.date}</span>
+                      </div>
+                      <p className="text-gray-400 text-xs mb-2">
+                        {breach.description}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {breach.compromised_data.map((item, i) => (
+                          <span key={i} className="bg-cyber-red/20 text-cyber-red text-[10px] px-2 py-1 rounded font-mono">
+                            {item}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                    <p className="text-gray-400 text-xs mb-2">
-                      Over 100M user records were leaked on a dark web forum containing emails, passwords, and profile data.
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <span className="bg-cyber-red/20 text-cyber-red text-[10px] px-2 py-1 rounded font-mono">Email Address</span>
-                      <span className="bg-cyber-red/20 text-cyber-red text-[10px] px-2 py-1 rounded font-mono">Passwords</span>
-                      <span className="bg-cyber-yellow/20 text-cyber-yellow text-[10px] px-2 py-1 rounded font-mono">Names</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-cyber-navy p-4 rounded-xl border border-gray-800">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="text-white font-bold">CloudStorage Hack</h4>
-                      <span className="text-xs text-gray-500">Jan 2022</span>
-                    </div>
-                    <p className="text-gray-400 text-xs mb-2">
-                      A misconfigured database exposed user metadata.
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <span className="bg-cyber-red/20 text-cyber-red text-[10px] px-2 py-1 rounded font-mono">Email Address</span>
-                      <span className="bg-cyber-yellow/20 text-cyber-yellow text-[10px] px-2 py-1 rounded font-mono">IP Addresses</span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
                 <div className="mt-6 p-4 bg-cyber-yellow/10 border border-cyber-yellow/50 rounded-lg">

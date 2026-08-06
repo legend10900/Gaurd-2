@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Shield, Play, Bug, CheckCircle, AlertTriangle, Trash2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Shield, Play, Bug, CheckCircle, AlertTriangle, Trash2, Upload } from 'lucide-react';
 import CyberHeader from '../components/CyberHeader';
 import { Screen } from '../App';
 
@@ -19,51 +19,53 @@ interface Threat {
 export default function AntivirusScreen({ onNavigate }: AntivirusScreenProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [scanComplete, setScanComplete] = useState(false);
-  const [scannedCount, setScannedCount] = useState(0);
   const [currentItem, setCurrentItem] = useState('');
   const [threats, setThreats] = useState<Threat[]>([]);
-  const totalCount = 145; // simulated
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    if (isScanning) {
-      interval = setInterval(() => {
-        setScannedCount(prev => {
-          if (prev >= totalCount) {
-            setIsScanning(false);
-            setScanComplete(true);
-            return totalCount;
-          }
-          setCurrentItem(`app.bin.module_${Math.floor(Math.random() * 900) + 100}.dex`);
-          return prev + Math.floor(Math.random() * 5) + 1;
-        });
-      }, 100);
-    }
-    return () => clearInterval(interval);
-  }, [isScanning]);
-
-  const startScan = () => {
+  const startScan = (file: File) => {
     setIsScanning(true);
     setScanComplete(false);
-    setScannedCount(0);
     setThreats([]);
+    setCurrentItem(file.name);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    fetch("/api/scan", {
+      method: "POST",
+      body: formData,
+    })
+      .then(res => res.json())
+      .then(data => {
+        setIsScanning(false);
+        setScanComplete(true);
+        if (data.threatFound && data.threatDetails) {
+          setThreats([{
+            id: Math.random().toString(),
+            ...data.threatDetails
+          }]);
+        }
+      })
+      .catch(err => {
+        console.error("Scan error", err);
+        setIsScanning(false);
+        setScanComplete(true);
+      });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      startScan(e.target.files[0]);
+    }
   };
 
   const generateEicar = () => {
-    startScan();
-    setTimeout(() => {
-      setThreats(prev => [
-        ...prev,
-        {
-          id: Math.random().toString(),
-          name: "EICAR-Test-File.apk",
-          severity: "CRITICAL",
-          threatName: "EICAR.Test.Virus",
-          description: "Standard antivirus testing file. Not an actual virus, but treated as one.",
-          sha256: "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f"
-        }
-      ]);
-    }, 1500);
+    // Create a fake EICAR file in browser
+    const eicarContent = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*";
+    const blob = new Blob([eicarContent], { type: "text/plain" });
+    const file = new File([blob], "eicar.com.txt", { type: "text/plain" });
+    startScan(file);
   };
 
   const removeThreat = (id: string) => {
@@ -76,6 +78,13 @@ export default function AntivirusScreen({ onNavigate }: AntivirusScreenProps) {
         title="Antivirus & Threat Shield" 
         subtitle="ON-DEVICE SHA-256 HEURISTIC SCANNER" 
         onBack={() => onNavigate('dashboard')}
+      />
+
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileChange} 
+        className="hidden" 
       />
 
       {/* Radar Card */}
@@ -99,35 +108,32 @@ export default function AntivirusScreen({ onNavigate }: AntivirusScreenProps) {
 
         {isScanning ? (
           <div className="w-full max-w-md text-center">
-            <p className="text-cyber-cyanAccent font-mono font-bold truncate mb-2">Scanning {currentItem}...</p>
-            <div className="w-full bg-gray-800 h-2 rounded-full overflow-hidden mb-2">
-              <div 
-                className="bg-cyber-bluePrimary h-full transition-all duration-200" 
-                style={{ width: `${(scannedCount / totalCount) * 100}%` }}
-              />
+            <p className="text-cyber-cyanAccent font-mono font-bold truncate mb-2">Analyzing: {currentItem}...</p>
+            <div className="w-full bg-gray-800 h-2 rounded-full overflow-hidden mb-2 relative">
+              <div className="absolute top-0 left-0 h-full w-1/3 bg-cyber-bluePrimary animate-[slide_1s_infinite]" />
             </div>
-            <p className="text-gray-400 font-mono text-xs">{scannedCount} / {totalCount} items verified</p>
+            <p className="text-gray-400 font-mono text-xs">Querying AI Engine & Hash DB</p>
           </div>
         ) : scanComplete ? (
           <div className="text-center">
             <h3 className={`text-xl font-bold ${threats.length === 0 ? 'text-cyber-green' : 'text-cyber-red'}`}>
-              {threats.length === 0 ? 'Scan Complete • Zero Threats Found' : `Threats Detected: ${threats.length}`}
+              {threats.length === 0 ? 'Scan Complete • No Threats Found' : `Threats Detected: ${threats.length}`}
             </h3>
           </div>
         ) : (
           <div className="text-center">
-            <h3 className="text-xl font-bold text-white">Ready for System Scan</h3>
+            <h3 className="text-xl font-bold text-white">Select a file to scan</h3>
           </div>
         )}
 
         <div className="flex gap-4 w-full max-w-md mt-8">
           <button 
-            onClick={startScan}
+            onClick={() => fileInputRef.current?.click()}
             disabled={isScanning}
             className="flex-1 flex items-center justify-center gap-2 bg-cyber-bluePrimary hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg transition-colors"
           >
-            <Play size={20} />
-            <span>Execute Full Scan</span>
+            <Upload size={20} />
+            <span>Upload File</span>
           </button>
           <button 
             onClick={generateEicar}
