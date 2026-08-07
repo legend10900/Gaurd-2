@@ -15,7 +15,7 @@ export default function BatteryCoolerScreen({ onNavigate }: BatteryCoolerScreenP
   const [batteryInfo, setBatteryInfo] = useState<BatteryInfo | null>(null);
 
   useEffect(() => {
-    Device.getBatteryInfo().then(info => setBatteryInfo(info));
+    Device.getBatteryInfo().then(info => setBatteryInfo(info)).catch(e => console.warn("Battery info not available:", e));
   }, []);
 
   const startCooling = () => {

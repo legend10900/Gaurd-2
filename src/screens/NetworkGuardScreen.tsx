@@ -17,14 +17,14 @@ export default function NetworkGuardScreen({ onNavigate }: NetworkGuardScreenPro
   useEffect(() => {
     Network.getStatus().then(status => {
       setNetworkStatus(status);
-    });
+    }).catch(e => console.warn(e));
     
     const listener = Network.addListener('networkStatusChange', status => {
       setNetworkStatus(status);
     });
     
     return () => {
-      listener.then(l => l.remove());
+      listener.then(l => l.remove()).catch(e => console.warn(e));
     };
   }, []);
 
@@ -34,7 +34,7 @@ export default function NetworkGuardScreen({ onNavigate }: NetworkGuardScreenPro
     setScanProgress(0);
     
     // Refresh status
-    Network.getStatus().then(status => setNetworkStatus(status));
+    Network.getStatus().then(status => setNetworkStatus(status)).catch(e => console.warn(e));
     
     const interval = setInterval(() => {
       setScanProgress(prev => {
