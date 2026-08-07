@@ -1,9 +1,5 @@
 import { useState } from 'react';
-<<<<<<< HEAD
 import { Lock, Search, Shield, ShieldAlert, ShieldCheck } from 'lucide-react';
-=======
-import { Lock, Smartphone, Shield } from 'lucide-react';
->>>>>>> 605524d (	new file:   capacitor.config.ts#)
 import CyberHeader from '../components/CyberHeader';
 import { Screen } from '../App';
 
@@ -11,7 +7,6 @@ interface AppLockScreenProps {
   onNavigate: (screen: Screen) => void;
 }
 
-<<<<<<< HEAD
 const apps = [
   { id: '1', name: 'WhatsApp', icon: 'W', locked: true, risk: 'high' },
   { id: '2', name: 'Gallery', icon: 'G', locked: true, risk: 'high' },
@@ -111,47 +106,6 @@ export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
               No apps found matching "{searchTerm}"
             </div>
           )}
-=======
-export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
-  const [lockedApps, setLockedApps] = useState<string[]>([]);
-  const apps = ['Banking App', 'Messages', 'Gallery', 'Social Media', 'Email Client'];
-
-  const toggleLock = (app: string) => {
-    setLockedApps(prev => 
-      prev.includes(app) ? prev.filter(a => a !== app) : [...prev, app]
-    );
-  };
-
-  return (
-    <div className="flex flex-col p-4 md:p-6 h-screen overflow-y-auto pb-24">
-      <CyberHeader 
-        title="App Locker" 
-        subtitle="BIOMETRIC APP ENCRYPTION" 
-        onBack={() => onNavigate('dashboard')}
-      />
-      <div className="mt-6 bg-cyber-darkCard rounded-3xl p-6 border border-[#00b3b3]/50 shadow-lg">
-        <div className="flex flex-col items-center mb-6">
-           <Lock size={48} className="text-[#00b3b3] mb-4" />
-           <h3 className="text-white font-bold text-lg text-center">Protect Sensitive Apps</h3>
-           <p className="text-gray-400 text-sm text-center">Require a PIN or Biometric check before opening these applications.</p>
-        </div>
-
-        <div className="space-y-3">
-          {apps.map(app => (
-            <div key={app} className="bg-cyber-navy p-4 rounded-xl border border-gray-800 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Smartphone className="text-gray-400" size={20} />
-                <span className="text-white font-semibold">{app}</span>
-              </div>
-              <button 
-                onClick={() => toggleLock(app)}
-                className={`p-2 rounded-lg border transition-colors ${lockedApps.includes(app) ? 'bg-[#00b3b3]/20 border-[#00b3b3] text-[#00b3b3]' : 'bg-transparent border-gray-600 text-gray-500'}`}
-              >
-                {lockedApps.includes(app) ? <Shield size={18} /> : <Lock size={18} />}
-              </button>
-            </div>
-          ))}
->>>>>>> 605524d (	new file:   capacitor.config.ts#)
         </div>
       </div>
     </div>

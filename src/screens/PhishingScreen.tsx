@@ -1,9 +1,5 @@
 import { useState } from 'react';
-<<<<<<< HEAD
 import { Fish, Shield, AlertTriangle, ShieldCheck, Search } from 'lucide-react';
-=======
-import { Fish, Search, ShieldAlert, ShieldCheck } from 'lucide-react';
->>>>>>> 605524d (	new file:   capacitor.config.ts#)
 import CyberHeader from '../components/CyberHeader';
 import { Screen } from '../App';
 
@@ -14,10 +10,8 @@ interface PhishingScreenProps {
 export default function PhishingScreen({ onNavigate }: PhishingScreenProps) {
   const [url, setUrl] = useState('');
   const [isScanning, setIsScanning] = useState(false);
-<<<<<<< HEAD
   const [result, setResult] = useState<'none' | 'safe' | 'unsafe'>('none');
   const [scannedUrl, setScannedUrl] = useState('');
-
   const [reason, setReason] = useState('');
 
   const handleScan = async (e: React.FormEvent) => {
@@ -29,19 +23,15 @@ export default function PhishingScreen({ onNavigate }: PhishingScreenProps) {
     setReason('');
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || "https://gaurdshield-2.onrender.com";
-      const response = await fetch(`${apiUrl}/api/phishing`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+      const response = await fetch('/api/phishing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
       });
-      
       const data = await response.json();
       setScannedUrl(data.url);
-      setResult(data.phishing ? 'unsafe' : 'safe');
-      setReason(data.reason || '');
+      setResult(data.safe ? 'safe' : 'unsafe');
+      setReason(data.threatType || '');
     } catch (error) {
       console.error("Phishing scan failed", error);
       setResult('unsafe');
@@ -49,35 +39,12 @@ export default function PhishingScreen({ onNavigate }: PhishingScreenProps) {
     } finally {
       setIsScanning(false);
       setUrl('');
-=======
-  const [result, setResult] = useState<'clean' | 'phishing' | null>(null);
-
-  const scanUrl = async () => {
-    if (!url) return;
-    setIsScanning(true);
-    setResult(null);
-    
-    try {
-      const response = await fetch('/api/phishing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-      const data = await response.json();
-      setResult(data.safe ? 'clean' : 'phishing');
-    } catch (error) {
-      console.error("Phishing scan failed:", error);
-      setResult('clean'); // Fallback on error
-    } finally {
-      setIsScanning(false);
->>>>>>> 605524d (	new file:   capacitor.config.ts#)
     }
   };
 
   return (
     <div className="flex flex-col p-4 md:p-6 h-screen overflow-y-auto pb-24">
       <CyberHeader 
-<<<<<<< HEAD
         title="Phishing Guard" 
         subtitle="INSPECT URLS & WEBSITES" 
         onBack={() => onNavigate('dashboard')} 
@@ -173,49 +140,6 @@ export default function PhishingScreen({ onNavigate }: PhishingScreenProps) {
             </label>
           </div>
         </div>
-=======
-        title="Phishing & Link Inspector" 
-        subtitle="AI URL ANALYSIS & THREAT INTEL" 
-        onBack={() => onNavigate('dashboard')}
-      />
-      <div className="mt-6 bg-cyber-darkCard rounded-3xl p-6 md:p-8 border border-cyber-cyanAccent/50 shadow-lg flex flex-col items-center">
-        <Fish size={48} className="text-cyber-cyanAccent mb-4" />
-        <h3 className="text-white text-lg font-bold mb-2">Inspect URL for Threats</h3>
-        <p className="text-gray-400 text-center text-sm mb-6">Enter a suspicious link to check it against our phishing database and AI heuristics.</p>
-        
-        <div className="w-full flex gap-2">
-          <input
-            type="text"
-            placeholder="https://example.com/login"
-            className="flex-1 bg-cyber-navy border border-gray-700 rounded-lg px-4 py-2 text-white outline-none focus:border-cyber-cyanAccent transition-colors"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-          />
-          <button 
-            onClick={scanUrl}
-            disabled={isScanning || !url}
-            className="bg-cyber-cyanAccent hover:bg-cyan-400 text-black px-4 py-2 rounded-lg font-bold disabled:opacity-50 flex items-center justify-center"
-          >
-            {isScanning ? <Search className="animate-spin" /> : <Search />}
-          </button>
-        </div>
-
-        {result && (
-          <div className={`w-full mt-6 p-4 rounded-xl border flex items-start gap-3 ${result === 'clean' ? 'bg-cyber-green/10 border-cyber-green' : 'bg-cyber-red/10 border-cyber-red'}`}>
-            {result === 'clean' ? <ShieldCheck className="text-cyber-green shrink-0" /> : <ShieldAlert className="text-cyber-red shrink-0" />}
-            <div>
-              <h4 className={`font-bold ${result === 'clean' ? 'text-cyber-green' : 'text-cyber-red'}`}>
-                {result === 'clean' ? 'Safe Link' : 'Malicious Link Detected!'}
-              </h4>
-              <p className="text-gray-300 text-sm mt-1">
-                {result === 'clean' 
-                  ? 'This URL is not present in known malware or phishing databases and passes heuristic checks.'
-                  : 'Warning: This URL exhibits behaviors associated with phishing or credential harvesting scams. Do not enter personal information.'}
-              </p>
-            </div>
-          </div>
-        )}
->>>>>>> 605524d (	new file:   capacitor.config.ts#)
       </div>
     </div>
   );
