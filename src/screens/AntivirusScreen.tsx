@@ -23,10 +23,61 @@ export default function AntivirusScreen({ onNavigate }: AntivirusScreenProps) {
   const [threats, setThreats] = useState<Threat[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [totalItems, setTotalItems] = useState(1);
+
+  const scanDirectory = async () => {
+    try {
+      // @ts-ignore
+      const dirHandle = await window.showDirectoryPicker();
+      setIsScanning(true);
+      setScanComplete(false);
+      setThreats([]);
+      setCurrentItem('Starting recursive directory scan...');
+      
+      let scannedCount = 0;
+      const foundThreats: Threat[] = [];
+
+      async function scanNode(handle: any) {
+        if (scannedCount > 50) return; // Limit for demo purposes
+        for await (const entry of handle.values()) {
+          if (scannedCount > 50) return;
+          if (entry.kind === 'file') {
+             setCurrentItem(`Scanning: ${entry.name}`);
+             const file = await entry.getFile();
+             scannedCount++;
+             
+             const formData = new FormData();
+             formData.append("file", file);
+             try {
+                const res = await fetch("/api/scan", { method: "POST", body: formData });
+                const data = await res.json();
+                if (data.threatFound && data.threatDetails) {
+                  foundThreats.push({ id: Math.random().toString(), ...data.threatDetails });
+                  setThreats([...foundThreats]);
+                }
+             } catch (e) { console.error(e); }
+          } else if (entry.kind === 'directory') {
+             await scanNode(entry);
+          }
+        }
+      }
+
+      await scanNode(dirHandle);
+      setIsScanning(false);
+      setScanComplete(true);
+      setTotalItems(scannedCount);
+      setCurrentItem('');
+    } catch (error) {
+      console.error("Directory scan cancelled or failed", error);
+      setIsScanning(false);
+    }
+  };
+
   const startScan = (file: File) => {
     setIsScanning(true);
     setScanComplete(false);
     setThreats([]);
+    setTotalItems(1);
     setCurrentItem(file.name);
 
     const formData = new FormData();
@@ -109,7 +160,7 @@ export default function AntivirusScreen({ onNavigate }: AntivirusScreenProps) {
 
         {isScanning ? (
           <div className="w-full max-w-md text-center">
-            <p className="text-cyber-cyanAccent font-mono font-bold truncate mb-2">Analyzing: {currentItem}...</p>
+            <p className="text-cyber-cyanAccent font-mono font-bold truncate mb-2">{currentItem}</p>
             <div className="w-full bg-gray-800 h-2 rounded-full overflow-hidden mb-2 relative">
               <div className="absolute top-0 left-0 h-full w-1/3 bg-cyber-bluePrimary animate-[slide_1s_infinite]" />
             </div>
@@ -123,27 +174,37 @@ export default function AntivirusScreen({ onNavigate }: AntivirusScreenProps) {
           </div>
         ) : (
           <div className="text-center">
-            <h3 className="text-xl font-bold text-white">Select a file to scan</h3>
+            <h3 className="text-xl font-bold text-white">Select a file or folder to scan</h3>
           </div>
         )}
 
-        <div className="flex gap-4 w-full max-w-md mt-8">
+        <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md mt-8">
           <button 
-            onClick={() => fileInputRef.current?.click()}
+            onClick={scanDirectory}
             disabled={isScanning}
             className="flex-1 flex items-center justify-center gap-2 bg-cyber-bluePrimary hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg transition-colors"
           >
-            <Upload size={20} />
-            <span>Upload File</span>
+            <Shield size={20} />
+            <span>Scan Device Folder</span>
           </button>
-          <button 
-            onClick={generateEicar}
-            disabled={isScanning}
-            className="flex items-center justify-center gap-2 bg-transparent border-2 border-cyber-yellow text-cyber-yellow hover:bg-cyber-yellow/10 disabled:opacity-50 disabled:cursor-not-allowed font-bold px-4 py-3 rounded-lg transition-colors"
-          >
-            <Bug size={20} />
-            <span className="hidden md:inline">EICAR Test</span>
-          </button>
+          
+          <div className="flex gap-4 sm:flex-1">
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isScanning}
+              className="flex-1 flex items-center justify-center gap-2 bg-cyber-navy border border-gray-600 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg transition-colors"
+            >
+              <Upload size={20} />
+              <span className="hidden sm:inline">File</span>
+            </button>
+            <button 
+              onClick={generateEicar}
+              disabled={isScanning}
+              className="flex items-center justify-center gap-2 bg-transparent border-2 border-cyber-yellow text-cyber-yellow hover:bg-cyber-yellow/10 disabled:opacity-50 disabled:cursor-not-allowed font-bold px-4 py-3 rounded-lg transition-colors"
+            >
+              <Bug size={20} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -166,7 +227,7 @@ export default function AntivirusScreen({ onNavigate }: AntivirusScreenProps) {
       <div className="mt-8 mb-4 flex justify-between items-end">
         <h2 className="text-xl font-bold text-white uppercase tracking-wide">Scan Results</h2>
         {scanComplete && (
-          <span className="text-gray-400 font-mono text-sm">{totalCount} items analyzed</span>
+          <span className="text-gray-400 font-mono text-sm">{totalItems} item(s) analyzed</span>
         )}
       </div>
 

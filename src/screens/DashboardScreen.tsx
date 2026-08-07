@@ -133,7 +133,11 @@ export default function DashboardScreen({ onNavigate }: DashboardScreenProps) {
           icon={Wifi}
           badgeText="Network Audit"
           accentColor="#00e676"
+<<<<<<< HEAD
           onClick={() => onNavigate('networkguard')}
+=======
+          onClick={() => onNavigate('network')}
+>>>>>>> 605524d (	new file:   capacitor.config.ts#)
         />
         <CyberModuleCard
           title="Battery & Thermal Monitor"

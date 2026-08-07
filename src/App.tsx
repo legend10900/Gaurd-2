@@ -4,11 +4,19 @@ import AntivirusScreen from './screens/AntivirusScreen';
 import DataBreachScreen from './screens/DataBreachScreen';
 import JunkCleanerScreen from './screens/JunkCleanerScreen';
 import BatteryCoolerScreen from './screens/BatteryCoolerScreen';
+<<<<<<< HEAD
 import AppLockScreen from './screens/AppLockScreen';
 import PhishingScreen from './screens/PhishingScreen';
 import NetworkGuardScreen from './screens/NetworkGuardScreen';
 
 export type Screen = 'dashboard' | 'antivirus' | 'databreach' | 'junkcleaner' | 'batterycooler' | 'applock' | 'phishing' | 'networkguard' | 'unimplemented';
+=======
+import PhishingScreen from './screens/PhishingScreen';
+import NetworkScreen from './screens/NetworkScreen';
+import AppLockScreen from './screens/AppLockScreen';
+
+export type Screen = 'dashboard' | 'antivirus' | 'databreach' | 'junkcleaner' | 'batterycooler' | 'unimplemented' | 'phishing' | 'network' | 'applock';
+>>>>>>> 605524d (	new file:   capacitor.config.ts#)
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
@@ -29,12 +37,21 @@ function App() {
         return <JunkCleanerScreen onNavigate={navigate} />;
       case 'batterycooler':
         return <BatteryCoolerScreen onNavigate={navigate} />;
+<<<<<<< HEAD
       case 'applock':
         return <AppLockScreen onNavigate={navigate} />;
       case 'phishing':
         return <PhishingScreen onNavigate={navigate} />;
       case 'networkguard':
         return <NetworkGuardScreen onNavigate={navigate} />;
+=======
+      case 'phishing':
+        return <PhishingScreen onNavigate={navigate} />;
+      case 'network':
+        return <NetworkScreen onNavigate={navigate} />;
+      case 'applock':
+        return <AppLockScreen onNavigate={navigate} />;
+>>>>>>> 605524d (	new file:   capacitor.config.ts#)
       case 'unimplemented':
         return (
           <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center">
