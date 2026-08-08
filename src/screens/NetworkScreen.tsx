@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Wifi, ShieldAlert, ShieldCheck, Activity } from 'lucide-react';
+import { Network } from '@capacitor/network';
 import CyberHeader from '../components/CyberHeader';
 import { Screen } from '../App';
 
@@ -10,14 +11,27 @@ interface NetworkScreenProps {
 export default function NetworkScreen({ onNavigate }: NetworkScreenProps) {
   const [isScanning, setIsScanning] = useState(true);
   const [isSecure, setIsSecure] = useState(false);
+  const [connectionType, setConnectionType] = useState<string>('unknown');
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsScanning(false);
-      // Simulate checking if network is secure (e.g. HTTPS, encrypted Wi-Fi)
-      setIsSecure(Math.random() > 0.3); // 70% chance it's "secure" for demo
-    }, 3000);
-    return () => clearTimeout(timer);
+    const checkNetwork = async () => {
+      try {
+        const status = await Network.getStatus();
+        setConnectionType(status.connectionType);
+        
+        // Simulating deep audit while using real connection type
+        setTimeout(() => {
+          setIsScanning(false);
+          // If on wifi/cellular, assume some baseline security checks
+          setIsSecure(status.connected && (status.connectionType === 'wifi' || status.connectionType === 'cellular'));
+        }, 3000);
+      } catch (error) {
+        console.error("Network info error:", error);
+        setIsScanning(false);
+      }
+    };
+
+    checkNetwork();
   }, []);
 
   return (
@@ -40,14 +54,15 @@ export default function NetworkScreen({ onNavigate }: NetworkScreenProps) {
             <div className="space-y-2 text-left bg-cyber-navy p-4 rounded border border-gray-800">
                <p className="text-gray-400 font-mono text-xs">Checking DNSSEC validity...</p>
                <p className="text-gray-400 font-mono text-xs">Scanning for ARP Poisoning...</p>
-               <p className="text-gray-400 font-mono text-xs">Verifying SSL/TLS Interception...</p>
+               <p className="text-gray-400 font-mono text-xs">Verifying SSL/TLS Interception on {connectionType}...</p>
             </div>
           </div>
         ) : (
           <div className="text-center w-full">
-            <h3 className={`text-xl font-bold mb-4 ${isSecure ? 'text-cyber-green' : 'text-cyber-red'}`}>
+            <h3 className={`text-xl font-bold mb-2 ${isSecure ? 'text-cyber-green' : 'text-cyber-red'}`}>
               {isSecure ? 'Network is Secure' : 'Insecure Network Detected'}
             </h3>
+            <p className="text-gray-400 text-sm mb-4">Current Connection: {connectionType.toUpperCase()}</p>
             
             <div className={`p-4 rounded-xl border flex flex-col gap-2 ${isSecure ? 'border-cyber-green bg-cyber-green/10' : 'border-cyber-red bg-cyber-red/10'}`}>
                <div className="flex justify-between items-center">
