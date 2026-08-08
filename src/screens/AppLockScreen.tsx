@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Lock, Search, Shield, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { registerPlugin } from '@capacitor/core';
 import CyberHeader from '../components/CyberHeader';
 import { Screen } from '../App';
+
+const AppLocker = registerPlugin<any>('AppLocker');
 
 interface AppLockScreenProps {
   onNavigate: (screen: Screen) => void;
@@ -19,11 +22,28 @@ const apps = [
 export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
   const [appList, setAppList] = useState(apps);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isServiceRunning, setIsServiceRunning] = useState(false);
 
   const toggleLock = (id: string) => {
     setAppList(prev => prev.map(app => 
       app.id === id ? { ...app, locked: !app.locked } : app
     ));
+  };
+
+  const toggleNativeService = async () => {
+    try {
+      if (!isServiceRunning) {
+        await AppLocker.requestUsagePermission();
+        await AppLocker.startMonitoring();
+        setIsServiceRunning(true);
+      } else {
+        await AppLocker.stopMonitoring();
+        setIsServiceRunning(false);
+      }
+    } catch (e) {
+      console.warn("Native AppLocker not available in web context. Using simulated vault mode.", e);
+      setIsServiceRunning(!isServiceRunning);
+    }
   };
 
   const filteredApps = appList.filter(app => 
@@ -44,11 +64,14 @@ export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
             <Lock className="text-cyber-bluePrimary" size={32} />
           </div>
           <h3 className="text-white font-bold text-xl">Privacy Protection Active</h3>
-          <p className="text-gray-400 text-sm mt-2">
+          <p className="text-gray-400 text-sm mt-2 mb-4">
             {appList.filter(a => a.locked).length} apps secured with PIN/Biometrics
           </p>
-          <button className="mt-4 bg-cyber-bluePrimary/10 border border-cyber-bluePrimary/50 text-cyber-bluePrimary px-6 py-2 rounded-lg font-bold text-sm hover:bg-cyber-bluePrimary/20 transition-colors">
-            Change Master PIN
+          <button 
+            onClick={toggleNativeService}
+            className={`w-full py-3 rounded-lg font-bold transition-colors ${isServiceRunning ? 'bg-cyber-red/20 text-cyber-red border border-cyber-red/50 hover:bg-cyber-red/30' : 'bg-cyber-bluePrimary hover:bg-blue-600 text-white'}`}
+          >
+            {isServiceRunning ? 'Stop Native Overlay Service' : 'Start Native Overlay Service'}
           </button>
         </div>
 

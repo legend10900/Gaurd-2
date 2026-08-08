@@ -115,6 +115,49 @@ app.post("/api/scan", upload.single("file"), async (req, res) => {
   }
 });
 
+// 1.5 Antivirus Scan Endpoint (By Hash for Full Native Device Scans)
+app.post("/api/scan-hash", async (req, res) => {
+  try {
+    const { hash, filename } = req.body;
+    if (!hash) return res.status(400).json({ error: "Hash required." });
+
+    const vtApiKey = process.env.VIRUSTOTAL_API_KEY || "2cb0b60bcf973d948fc510d772e12b5df4793f9b9599108870ee7311e231b780";
+    
+    const response = await fetch(`https://www.virustotal.com/api/v3/files/${hash}`, {
+      method: "GET",
+      headers: { "x-apikey": vtApiKey }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const stats = data.data.attributes.last_analysis_stats;
+      const isMalicious = stats.malicious > 0 || stats.suspicious > 0;
+      
+      if (isMalicious) {
+        const results = data.data.attributes.last_analysis_results;
+        const threatName = Object.values(results).find((r: any) => r.category === "malicious")?.result || "Suspicious File";
+        
+        return res.json({
+          threatFound: true,
+          hash,
+          filename: filename || "NativeFile",
+          threatDetails: {
+            name: filename || "NativeFile",
+            severity: stats.malicious > 5 ? "CRITICAL" : "HIGH",
+            threatName: threatName,
+            description: `Flagged by ${stats.malicious} antivirus engines on VirusTotal.`,
+            sha256: hash
+          }
+        });
+      }
+    }
+    
+    return res.json({ threatFound: false, hash, filename, message: "Clean" });
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error during hash scan." });
+  }
+});
+
 // 2. Data Breach Check Endpoint
 app.post("/api/breach", async (req, res) => {
   const { email } = req.body;

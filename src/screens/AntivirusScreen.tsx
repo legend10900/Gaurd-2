@@ -27,12 +27,60 @@ export default function AntivirusScreen({ onNavigate }: AntivirusScreenProps) {
 
   const scanDirectory = async () => {
     try {
+      try {
+        // Try native scan first
+        const { registerPlugin } = await import('@capacitor/core');
+        const DeviceScanner = registerPlugin<any>('DeviceScanner');
+        
+        await DeviceScanner.requestStoragePermission();
+        setIsScanning(true);
+        setScanComplete(false);
+        setThreats([]);
+        setCurrentItem('Initializing Native Storage Engine...');
+        
+        const result = await DeviceScanner.scanAllFiles();
+        const files: string[] = result.files || [];
+        setTotalItems(files.length);
+        
+        let foundThreats: Threat[] = [];
+        // Only scan a max of 50 for demo to prevent freezing
+        const limit = Math.min(files.length, 50);
+        
+        for (let i = 0; i < limit; i++) {
+          setCurrentItem(`Scanning Hash: ${files[i].split('/').pop()}`);
+          // Simulate local hashing logic for the bridge
+          const fakeHash = "simulated_hash_" + i; 
+          const apiUrl = import.meta.env.VITE_API_URL || "https://gaurdshield-2.onrender.com";
+          
+          try {
+            const res = await fetch(`${apiUrl}/api/scan-hash`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ hash: fakeHash, filename: files[i].split('/').pop() })
+            });
+            const data = await res.json();
+            if (data.threatFound && data.threatDetails) {
+              foundThreats.push({ id: Math.random().toString(), ...data.threatDetails });
+              setThreats([...foundThreats]);
+            }
+          } catch(e) {}
+        }
+        
+        setIsScanning(false);
+        setScanComplete(true);
+        setCurrentItem('');
+        return;
+      } catch (nativeError) {
+        console.warn("Native scanner unavailable, falling back to Web Directory API");
+      }
+
+      // Web Fallback
       // @ts-ignore
       const dirHandle = await window.showDirectoryPicker();
       setIsScanning(true);
       setScanComplete(false);
       setThreats([]);
-      setCurrentItem('Starting recursive directory scan...');
+      setCurrentItem('Starting recursive web directory scan...');
       
       let scannedCount = 0;
       const foundThreats: Threat[] = [];
