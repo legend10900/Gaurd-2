@@ -49,7 +49,8 @@ export default function AntivirusScreen({ onNavigate }: AntivirusScreenProps) {
              const formData = new FormData();
              formData.append("file", file);
              try {
-                const res = await fetch("/api/scan", { method: "POST", body: formData });
+                 const apiUrl = import.meta.env.VITE_API_URL || "https://gaurdshield-2.onrender.com";
+                 const res = await fetch(`${apiUrl}/api/scan`, { method: "POST", body: formData });
                 const data = await res.json();
                 if (data.threatFound && data.threatDetails) {
                   foundThreats.push({ id: Math.random().toString(), ...data.threatDetails });

@@ -23,7 +23,8 @@ export default function PhishingScreen({ onNavigate }: PhishingScreenProps) {
     setReason('');
     
     try {
-      const response = await fetch('/api/phishing', {
+      const apiUrl = import.meta.env.VITE_API_URL || "https://gaurdshield-2.onrender.com";
+      const response = await fetch(`${apiUrl}/api/phishing`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
