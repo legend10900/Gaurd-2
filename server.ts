@@ -208,56 +208,6 @@ app.post("/api/phishing", async (req, res) => {
   }
 });
 
-// 3. Phishing Check Endpoint
-app.post("/api/phishing", async (req, res) => {
-  const { url } = req.body;
-  if (!url) return res.status(400).json({ error: "URL required." });
-
-  const urlLower = url.toLowerCase();
-  let isPhishing = false;
-  let reason = "";
-
-  // 1. Basic heuristic checks
-  if (urlLower.includes("paypal.com.biz") || urlLower.includes("secure-login-") || urlLower.includes("update-account-")) {
-    isPhishing = true;
-    reason = "URL contains known deceptive patterns.";
-  } else if (urlLower.includes("win-iphone") || urlLower.includes("free-money")) {
-    isPhishing = true;
-    reason = "URL contains scam keywords.";
-  }
-
-  // 2. Advanced heuristic with Gemini if available
-  if (!isPhishing && process.env.GEMINI_API_KEY) {
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const prompt = `Analyze this URL for phishing or scam indicators: ${url}. 
-Does it try to look like a legitimate brand but use a weird domain? Does it use deceptive subdomains?
-Reply with JSON: {"phishing": boolean, "reason": "string"}`;
-      
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-      });
-      
-      let aiResultStr = response.text || "{}";
-      aiResultStr = aiResultStr.replace(/```json/g, "").replace(/```/g, "").trim();
-      const aiResult = JSON.parse(aiResultStr);
-      
-      if (aiResult.phishing) {
-        isPhishing = true;
-        reason = aiResult.reason || "Flagged by AI analysis.";
-      }
-    } catch (err) {
-      console.error("Gemini phishing analysis failed:", err);
-    }
-  }
-
-  res.json({
-    phishing: isPhishing,
-    url,
-    reason: isPhishing ? reason : "No threats detected."
-  });
-});
 
 // --- Vite Middleware & Static Serving ---
 async function startServer() {
