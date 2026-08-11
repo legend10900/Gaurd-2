@@ -14,6 +14,41 @@ export default function PhishingScreen({ onNavigate }: PhishingScreenProps) {
   const [scannedUrl, setScannedUrl] = useState('');
   const [reason, setReason] = useState('');
 
+  const inspectUrlHeuristics = (targetUrl: string) => {
+    const warnings: string[] = [];
+    try {
+      const parsed = new URL(targetUrl.startsWith('http') ? targetUrl : `http://${targetUrl}`);
+      
+      if (parsed.protocol === 'http:') {
+        warnings.push("Unencrypted Connection: Site uses HTTP instead of HTTPS.");
+      }
+      
+      const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
+      if (ipRegex.test(parsed.hostname)) {
+        warnings.push("Raw IP Hostname: Legitimate services rarely use raw IP addresses in links.");
+      }
+
+      const hostParts = parsed.hostname.split('.');
+      if (hostParts.length > 3) {
+        warnings.push("High Subdomain Depth: Excessive subdomains detected, common in phishing traps.");
+      }
+
+      const suspiciousKeywords = ['login', 'verify', 'update', 'secure', 'account', 'banking', 'paypal', 'apple-id', 'support-fix'];
+      const matched = suspiciousKeywords.filter(k => parsed.hostname.toLowerCase().includes(k));
+      if (matched.length > 0 && !['google.com', 'apple.com', 'paypal.com'].some(d => parsed.hostname.endsWith(d))) {
+        warnings.push(`Deceptive Keyword: Domain contains security keywords (${matched.join(', ')}) on an unverified domain.`);
+      }
+
+      const suspiciousTlds = ['.zip', '.mov', '.top', '.xyz', '.work', '.click', '.gq', '.cf', '.tk'];
+      if (suspiciousTlds.some(tld => parsed.hostname.endsWith(tld))) {
+        warnings.push("High-Risk TLD: Domain extension frequently associated with malicious campaigns.");
+      }
+    } catch {
+      warnings.push("Invalid URL Structure: Could not parse standard URL format.");
+    }
+    return warnings;
+  };
+
   const handleScan = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url) return;
@@ -22,25 +57,44 @@ export default function PhishingScreen({ onNavigate }: PhishingScreenProps) {
     setResult('none');
     setReason('');
     
+    const formattedUrl = url.trim().startsWith('http') ? url.trim() : `https://${url.trim()}`;
+    setScannedUrl(formattedUrl);
+
+    // 1. Run local heuristics inspection
+    const heuristicWarnings = inspectUrlHeuristics(formattedUrl);
+
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "https://guardshield-2.onrender.com";
       const response = await fetch(`${apiUrl}/api/phishing`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
+        body: JSON.stringify({ url: formattedUrl })
       });
-      const data = await response.json();
-      setScannedUrl(data.url);
-      setResult(data.safe ? 'safe' : 'unsafe');
-      setReason(data.threatType || '');
+
+      if (response.ok) {
+        const data = await response.json();
+        if (!data.safe) {
+          setResult('unsafe');
+          setReason(data.threatType ? `Cloud Threat Match: ${data.threatType}` : 'Flagged as unsafe by threat intelligence database.');
+          setIsScanning(false);
+          setUrl('');
+          return;
+        }
+      }
     } catch (error) {
-      console.error("Phishing scan failed", error);
-      setResult('unsafe');
-      setReason("Failed to contact security servers. Proceed with extreme caution.");
-    } finally {
-      setIsScanning(false);
-      setUrl('');
+      console.warn("Backend phishing API unavailable, utilizing heuristic inspector.", error);
     }
+
+    if (heuristicWarnings.length > 0) {
+      setResult('unsafe');
+      setReason(heuristicWarnings.join(' '));
+    } else {
+      setResult('safe');
+      setReason("Domain passed protocol checks, IP analysis, and heuristic phishing pattern filters.");
+    }
+
+    setIsScanning(false);
+    setUrl('');
   };
 
   return (
@@ -81,7 +135,7 @@ export default function PhishingScreen({ onNavigate }: PhishingScreenProps) {
               {isScanning ? (
                 <>
                   <div className="w-5 h-5 border-2 border-cyber-cyanAccent border-t-transparent rounded-full animate-spin" />
-                  Scanning URL...
+                  Analyzing Link & Heuristics...
                 </>
               ) : (
                 <>
@@ -118,9 +172,7 @@ export default function PhishingScreen({ onNavigate }: PhishingScreenProps) {
             </div>
             
             <p className="text-gray-400 text-sm">
-              {result === 'safe' 
-                ? (reason || 'No threats were found on this domain. It appears safe to visit, but always remain vigilant and check the address bar for HTTPS.')
-                : (reason || 'This website has been flagged as a deceptive site designed to steal your information. Do not enter passwords or personal data.')}
+              {reason}
             </p>
           </div>
         )}
@@ -128,20 +180,14 @@ export default function PhishingScreen({ onNavigate }: PhishingScreenProps) {
         <div className="bg-cyber-navy p-5 rounded-2xl border border-gray-800">
           <h4 className="text-white font-bold mb-3 flex items-center gap-2">
             <Shield className="text-cyber-bluePrimary" size={18} />
-            Real-Time SMS & Chat Guard
+            Real-Time SMS & Link Inspector
           </h4>
           <p className="text-gray-400 text-sm mb-4">
-            Automatically scans links received in SMS, WhatsApp, and Telegram for phishing attempts.
+            Scans links against threat feeds and pattern recognition algorithms.
           </p>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-gray-300">Background Scanner</span>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" defaultChecked />
-              <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyber-cyanAccent"></div>
-            </label>
-          </div>
         </div>
       </div>
     </div>
   );
 }
+

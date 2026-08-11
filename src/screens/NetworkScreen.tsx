@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Wifi, ShieldAlert, ShieldCheck, Activity } from 'lucide-react';
 import { Network } from '@capacitor/network';
+import { registerPlugin } from '@capacitor/core';
 import CyberHeader from '../components/CyberHeader';
 import { Screen } from '../App';
+
+const NetworkAudit = registerPlugin<any>('NetworkAudit');
 
 interface NetworkScreenProps {
   onNavigate: (screen: Screen) => void;
@@ -19,12 +22,12 @@ export default function NetworkScreen({ onNavigate }: NetworkScreenProps) {
         const status = await Network.getStatus();
         setConnectionType(status.connectionType);
         
-        // Simulating deep audit while using real connection type
-        setTimeout(() => {
-          setIsScanning(false);
-          // If on wifi/cellular, assume some baseline security checks
-          setIsSecure(status.connected && (status.connectionType === 'wifi' || status.connectionType === 'cellular'));
-        }, 3000);
+        // Real deep audit via Native Plugin
+        const auditResult = await NetworkAudit.performAudit();
+
+        setIsScanning(false);
+        // Secure if connected and native audit returns positive results
+        setIsSecure(status.connected && auditResult.dnsSecure && auditResult.portsSecure);
       } catch (error) {
         console.error("Network info error:", error);
         setIsScanning(false);

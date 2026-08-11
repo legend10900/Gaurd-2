@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Wifi, ShieldCheck, ShieldAlert, Activity, Globe, Server } from 'lucide-react';
+import { Wifi, ShieldCheck, Activity, Globe, Server } from 'lucide-react';
 import { Network, ConnectionStatus } from '@capacitor/network';
 import CyberHeader from '../components/CyberHeader';
 import { Screen } from '../App';
@@ -11,10 +11,20 @@ interface NetworkGuardScreenProps {
 export default function NetworkGuardScreen({ onNavigate }: NetworkGuardScreenProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [hasScanned, setHasScanned] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
+  const [latencyMs, setLatencyMs] = useState<number | null>(null);
   const [networkStatus, setNetworkStatus] = useState<ConnectionStatus | null>(null);
+  const [effectiveType, setEffectiveType] = useState<string>('4g');
+  const [isHttps, setIsHttps] = useState<boolean>(true);
 
   useEffect(() => {
+    setIsHttps(window.location.protocol === 'https:');
+    
+    // Web connection info if available
+    const navConn = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+    if (navConn && navConn.effectiveType) {
+      setEffectiveType(navConn.effectiveType);
+    }
+
     Network.getStatus().then(status => {
       setNetworkStatus(status);
     }).catch(e => console.warn(e));
@@ -28,25 +38,35 @@ export default function NetworkGuardScreen({ onNavigate }: NetworkGuardScreenPro
     };
   }, []);
 
-  const startScan = () => {
+  const startScan = async () => {
     setIsScanning(true);
     setHasScanned(false);
-    setScanProgress(0);
-    
-    // Refresh status
-    Network.getStatus().then(status => setNetworkStatus(status)).catch(e => console.warn(e));
-    
-    const interval = setInterval(() => {
-      setScanProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsScanning(false);
-          setHasScanned(true);
-          return 100;
-        }
-        return prev + 5;
-      });
-    }, 100);
+    setLatencyMs(null);
+
+    const start = performance.now();
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "https://guardshield-2.onrender.com";
+      await fetch(`${apiUrl}/api/phishing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: 'https://example.com' })
+      }).catch(() => null);
+    } catch {
+      // Ignore fallback
+    }
+    const end = performance.now();
+    setLatencyMs(Math.round(end - start));
+
+    // Refresh network status
+    try {
+      const status = await Network.getStatus();
+      setNetworkStatus(status);
+    } catch (e) {
+      console.warn(e);
+    }
+
+    setIsScanning(false);
+    setHasScanned(true);
   };
 
   return (
@@ -69,18 +89,15 @@ export default function NetworkGuardScreen({ onNavigate }: NetworkGuardScreenPro
           </div>
           
           <h3 className="text-white font-bold text-xl mb-1">
-            {isScanning ? 'Analyzing Connection...' : hasScanned ? 'Network is Secure' : 'Ready to Scan'}
+            {isScanning ? 'Auditing Network Latency & Security...' : hasScanned ? 'Network Security Audit Complete' : 'Ready to Scan'}
           </h3>
           <p className="text-cyber-green text-sm font-mono bg-cyber-green/10 inline-block px-3 py-1 rounded-full border border-cyber-green/30 mb-6">
-            Status: {networkStatus ? (networkStatus.connected ? `Connected (${networkStatus.connectionType})` : 'Disconnected') : 'Checking...'}
+            Status: {networkStatus ? (networkStatus.connected ? `Connected (${networkStatus.connectionType || 'WiFi/Cellular'})` : 'Disconnected') : (navigator.onLine ? 'Connected' : 'Offline')}
           </p>
 
           {isScanning ? (
-            <div className="w-full bg-gray-800 rounded-full h-2 mb-2">
-              <div 
-                className="bg-cyber-green h-2 rounded-full transition-all duration-100" 
-                style={{ width: `${scanProgress}%` }}
-              />
+            <div className="w-full bg-gray-800 rounded-full h-2 mb-2 animate-pulse">
+              <div className="bg-cyber-green h-2 rounded-full w-3/4 transition-all" />
             </div>
           ) : (
             <button 
@@ -99,9 +116,9 @@ export default function NetworkGuardScreen({ onNavigate }: NetworkGuardScreenPro
                 <ShieldCheck size={20} />
               </div>
               <div>
-                <h4 className="text-white font-semibold text-sm">Encryption</h4>
+                <h4 className="text-white font-semibold text-sm">Transport Encryption</h4>
                 <p className="text-gray-400 text-xs mt-1">
-                  {hasScanned ? 'WPA3 Personal (Strong)' : 'Checking protocol...'}
+                  {hasScanned ? (isHttps ? 'HTTPS / TLS Enabled' : 'HTTP (Unencrypted)') : 'Checking TLS...'}
                 </p>
               </div>
             </div>
@@ -111,9 +128,9 @@ export default function NetworkGuardScreen({ onNavigate }: NetworkGuardScreenPro
                 <Activity size={20} />
               </div>
               <div>
-                <h4 className="text-white font-semibold text-sm">ARP Spoofing</h4>
+                <h4 className="text-white font-semibold text-sm">Server Latency</h4>
                 <p className="text-gray-400 text-xs mt-1">
-                  {scanProgress > 40 ? 'No MITM attacks detected' : 'Checking routing...'}
+                  {hasScanned ? (latencyMs !== null ? `${latencyMs} ms RTT` : 'Normal') : 'Measuring ping...'}
                 </p>
               </div>
             </div>
@@ -123,9 +140,9 @@ export default function NetworkGuardScreen({ onNavigate }: NetworkGuardScreenPro
                 <Globe size={20} />
               </div>
               <div>
-                <h4 className="text-white font-semibold text-sm">DNS Hijacking</h4>
+                <h4 className="text-white font-semibold text-sm">Connection Profile</h4>
                 <p className="text-gray-400 text-xs mt-1">
-                  {scanProgress > 70 ? 'DNS queries are secure (DNSSEC)' : 'Verifying resolvers...'}
+                  {hasScanned ? `Speed Tier: ${effectiveType.toUpperCase()}` : 'Checking connection...'}
                 </p>
               </div>
             </div>
@@ -135,9 +152,9 @@ export default function NetworkGuardScreen({ onNavigate }: NetworkGuardScreenPro
                 <Server size={20} />
               </div>
               <div>
-                <h4 className="text-white font-semibold text-sm">Port Scan</h4>
+                <h4 className="text-white font-semibold text-sm">Offline/Online Status</h4>
                 <p className="text-gray-400 text-xs mt-1">
-                  {scanProgress > 90 ? 'All stealth ports filtered' : 'Scanning open ports...'}
+                  {hasScanned ? (navigator.onLine ? 'Internet Reachable' : 'No Internet Access') : 'Testing reachability...'}
                 </p>
               </div>
             </div>
@@ -147,3 +164,4 @@ export default function NetworkGuardScreen({ onNavigate }: NetworkGuardScreenPro
     </div>
   );
 }
+

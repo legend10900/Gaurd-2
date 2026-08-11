@@ -9,5 +9,6 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         registerPlugin(AppLockerPlugin.class);
         registerPlugin(ScannerPlugin.class);
+        registerPlugin(NetworkPlugin.class);
     }
 }

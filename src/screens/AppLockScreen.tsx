@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Lock, Search, Shield, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { useState } from 'react';
+import { Lock, Search, ShieldAlert, ShieldCheck, Info } from 'lucide-react';
 import { registerPlugin } from '@capacitor/core';
 import CyberHeader from '../components/CyberHeader';
 import { Screen } from '../App';
@@ -10,7 +10,7 @@ interface AppLockScreenProps {
   onNavigate: (screen: Screen) => void;
 }
 
-const apps = [
+const initialApps = [
   { id: '1', name: 'WhatsApp', icon: 'W', locked: true, risk: 'high' },
   { id: '2', name: 'Gallery', icon: 'G', locked: true, risk: 'high' },
   { id: '3', name: 'Banking', icon: 'B', locked: true, risk: 'critical' },
@@ -20,9 +20,11 @@ const apps = [
 ];
 
 export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
-  const [appList, setAppList] = useState(apps);
+  const [appList, setAppList] = useState(initialApps);
   const [searchTerm, setSearchTerm] = useState('');
   const [isServiceRunning, setIsServiceRunning] = useState(false);
+  const [pinCode, setPinCode] = useState('');
+  const [pinSet, setPinSet] = useState(false);
 
   const toggleLock = (id: string) => {
     setAppList(prev => prev.map(app => 
@@ -41,7 +43,7 @@ export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
         setIsServiceRunning(false);
       }
     } catch (e) {
-      console.warn("Native AppLocker not available in web context. Using simulated vault mode.", e);
+      console.warn("Native AppLocker system service is only available when compiled in an Android APK container.", e);
       setIsServiceRunning(!isServiceRunning);
     }
   };
@@ -53,8 +55,8 @@ export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
   return (
     <div className="flex flex-col p-4 md:p-6 h-screen overflow-y-auto pb-24">
       <CyberHeader 
-        title="App Lock" 
-        subtitle="SECURE SENSITIVE APPLICATIONS" 
+        title="App Lock Guard" 
+        subtitle="SENSITIVE APPLICATION PROTECTION" 
         onBack={() => onNavigate('dashboard')} 
       />
 
@@ -63,15 +65,25 @@ export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
           <div className="w-16 h-16 bg-cyber-bluePrimary/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-cyber-bluePrimary/50">
             <Lock className="text-cyber-bluePrimary" size={32} />
           </div>
-          <h3 className="text-white font-bold text-xl">Privacy Protection Active</h3>
+          <h3 className="text-white font-bold text-xl">App Locking & Security Vault</h3>
           <p className="text-gray-400 text-sm mt-2 mb-4">
-            {appList.filter(a => a.locked).length} apps secured with PIN/Biometrics
+            {appList.filter(a => a.locked).length} apps marked for PIN protection.
           </p>
+
+          <div className="bg-cyber-navy border border-gray-800 rounded-xl p-4 mb-4 text-left">
+            <div className="flex items-center gap-2 text-cyber-yellow font-semibold text-sm mb-1">
+              <Info size={16} /> Web vs Native Android Security
+            </div>
+            <p className="text-gray-400 text-xs leading-relaxed">
+              Standard web browsers cannot draw overlay pin screens over third-party system apps due to browser sandbox rules. Full system App Lock requires compiling the app into an Android APK with Accessibility/Usage Access permissions.
+            </p>
+          </div>
+
           <button 
             onClick={toggleNativeService}
             className={`w-full py-3 rounded-lg font-bold transition-colors ${isServiceRunning ? 'bg-cyber-red/20 text-cyber-red border border-cyber-red/50 hover:bg-cyber-red/30' : 'bg-cyber-bluePrimary hover:bg-blue-600 text-white'}`}
           >
-            {isServiceRunning ? 'Stop Native Overlay Service' : 'Start Native Overlay Service'}
+            {isServiceRunning ? 'Disable Overlay Protection' : 'Enable Native Overlay Service (APK Mode)'}
           </button>
         </div>
 
@@ -81,7 +93,7 @@ export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
           </div>
           <input
             type="text"
-            placeholder="Search installed apps..."
+            placeholder="Search apps..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-cyber-navy border border-gray-700 rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-cyber-cyanAccent focus:ring-1 focus:ring-cyber-cyanAccent transition-all"

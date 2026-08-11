@@ -50,6 +50,64 @@ public class ScannerPlugin extends Plugin {
         ret.put("files", jsArray);
         call.resolve(ret);
     }
+
+    @PluginMethod
+    public void getJunkSize(PluginCall call) {
+        long totalSize = 0;
+        File cacheDir = getContext().getCacheDir();
+        File extCacheDir = getContext().getExternalCacheDir();
+        
+        totalSize += getDirSize(cacheDir);
+        if (extCacheDir != null) {
+            totalSize += getDirSize(extCacheDir);
+        }
+        
+        JSObject ret = new JSObject();
+        ret.put("sizeBytes", totalSize);
+        ret.put("sizeMB", totalSize / (1024 * 1024));
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void cleanJunk(PluginCall call) {
+        File cacheDir = getContext().getCacheDir();
+        File extCacheDir = getContext().getExternalCacheDir();
+        
+        deleteDir(cacheDir);
+        if (extCacheDir != null) {
+            deleteDir(extCacheDir);
+        }
+        
+        call.resolve();
+    }
+
+    private long getDirSize(File dir) {
+        long size = 0;
+        File[] files = dir.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    size += getDirSize(file);
+                } else {
+                    size += file.length();
+                }
+            }
+        }
+        return size;
+    }
+
+    private void deleteDir(File dir) {
+        File[] files = dir.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    deleteDir(file);
+                } else {
+                    file.delete();
+                }
+            }
+        }
+    }
     
     private void scanDirectory(File dir, ArrayList<String> list, int[] count) {
         if (count[0] > 100) return;
