@@ -47,23 +47,25 @@ export default function AntivirusScreen({ onNavigate }: AntivirusScreenProps) {
         const limit = Math.min(files.length, 50);
         
         for (let i = 0; i < limit; i++) {
-          setCurrentItem(`Scanning Hash: ${files[i].split('/').pop()}`);
+          const fileName = files[i].split('/').pop() || "UnknownFile";
+          setCurrentItem(`Scanning Hash: ${fileName}`);
           // Simulate local hashing logic for the bridge
           const fakeHash = "simulated_hash_" + i; 
-          const apiUrl = import.meta.env.VITE_API_URL || "https://gaurdshield-2.onrender.com";
+          const apiUrl = import.meta.env.VITE_API_URL || "https://guardshield-2.onrender.com";
           
           try {
             const res = await fetch(`${apiUrl}/api/scan-hash`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ hash: fakeHash, filename: files[i].split('/').pop() })
+              body: JSON.stringify({ hash: fakeHash, filename: fileName })
             });
             const data = await res.json();
             if (data.threatFound && data.threatDetails) {
-              foundThreats.push({ id: Math.random().toString(), ...data.threatDetails });
-              setThreats([...foundThreats]);
+              setThreats(prev => [...prev, { id: Math.random().toString(), ...data.threatDetails }]);
             }
-          } catch(e) {}
+          } catch(e) {
+            console.error("Scan failed for", fileName, e);
+          }
         }
         
         setIsScanning(false);
@@ -97,7 +99,7 @@ export default function AntivirusScreen({ onNavigate }: AntivirusScreenProps) {
              const formData = new FormData();
              formData.append("file", file);
              try {
-                 const apiUrl = import.meta.env.VITE_API_URL || "https://gaurdshield-2.onrender.com";
+                 const apiUrl = import.meta.env.VITE_API_URL || "https://guardshield-2.onrender.com";
                  const res = await fetch(`${apiUrl}/api/scan`, { method: "POST", body: formData });
                 const data = await res.json();
                 if (data.threatFound && data.threatDetails) {
@@ -132,7 +134,7 @@ export default function AntivirusScreen({ onNavigate }: AntivirusScreenProps) {
     const formData = new FormData();
     formData.append("file", file);
 
-    const apiUrl = import.meta.env.VITE_API_URL || "https://gaurdshield-2.onrender.com";
+    const apiUrl = import.meta.env.VITE_API_URL || "https://guardshield-2.onrender.com";
     fetch(`${apiUrl}/api/scan`, {
       method: "POST",
       body: formData,

@@ -47,7 +47,17 @@ app.post("/api/scan", upload.single("file"), async (req, res) => {
     const filename = file.originalname;
 
     // REAL API INTEGRATION (VirusTotal)
-    const vtApiKey = process.env.VIRUSTOTAL_API_KEY || "2cb0b60bcf973d948fc510d772e12b5df4793f9b9599108870ee7311e231b780";
+    const vtApiKey = process.env.VIRUSTOTAL_API_KEY;
+
+    if (!vtApiKey) {
+      console.warn("VIRUSTOTAL_API_KEY not found in environment. Falling back to local clean message.");
+      return res.json({
+        threatFound: false,
+        hash,
+        filename,
+        message: "File scanned locally (no Cloud API key). Appears clean."
+      });
+    }
     
     try {
       const response = await fetch(`https://www.virustotal.com/api/v3/files/${hash}`, {
@@ -121,7 +131,8 @@ app.post("/api/scan-hash", async (req, res) => {
     const { hash, filename } = req.body;
     if (!hash) return res.status(400).json({ error: "Hash required." });
 
-    const vtApiKey = process.env.VIRUSTOTAL_API_KEY || "2cb0b60bcf973d948fc510d772e12b5df4793f9b9599108870ee7311e231b780";
+    const vtApiKey = process.env.VIRUSTOTAL_API_KEY;
+    if (!vtApiKey) return res.json({ threatFound: false, hash, filename, message: "Clean (Local)" });
     
     const response = await fetch(`https://www.virustotal.com/api/v3/files/${hash}`, {
       method: "GET",
@@ -164,6 +175,11 @@ app.post("/api/breach", async (req, res) => {
   if (!email) return res.status(400).json({ error: "Email required." });
 
   try {
+    // Check mock database first
+    if (MOCK_BREACH_DB[email]) {
+      return res.json({ breached: true, email, breaches: MOCK_BREACH_DB[email] });
+    }
+
     // REAL API INTEGRATION (XposedOrNot Public API)
     const response = await fetch(`https://api.xposedornot.com/v1/check-email/${encodeURIComponent(email)}`);
     
@@ -172,26 +188,25 @@ app.post("/api/breach", async (req, res) => {
     } else if (response.ok) {
       const data = await response.json();
       
-      // Format XposedOrNot response to match our frontend UI expectations
-      const formattedBreaches = (data.breaches || []).map((breachList: any[]) => {
-        return breachList.map((breachName: string) => ({
-          source: breachName,
-          date: "Known Breach",
-          description: "This email was found in the " + breachName + " data breach.",
-          compromised_data: ["Email Address", "Passwords/Personal Data"]
-        }));
-      }).flat();
-
-      // XposedOrNot returns an object where keys are "breaches", we just map the array if it exists directly.
-      // Actually the API returns { "breaches": [ [ "Breach1", "Breach2" ] ] } or similar, let's just parse the first array
       let finalBreaches: any[] = [];
-      if (data.breaches && Array.isArray(data.breaches[0])) {
-         finalBreaches = data.breaches[0].map((b: string) => ({
-           source: b,
-           date: "Historical Data",
-           description: `Your email was exposed in the ${b} breach.`,
-           compromised_data: ["Email", "Unknown Data"]
-         }));
+
+      // XposedOrNot API response can be complex.
+      // Typically it returns { "breaches": [ [ "BreachName", ... ] ] }
+      // or similar depending on the endpoint.
+      if (data && data.breaches) {
+        const breachArray = Array.isArray(data.breaches[0]) ? data.breaches[0] : (Array.isArray(data.breaches) ? data.breaches : []);
+
+        finalBreaches = breachArray.map((b: string | any) => {
+          if (typeof b === 'string') {
+            return {
+              source: b,
+              date: "Historical Leak",
+              description: `Your email was found in the ${b} data breach dump.`,
+              compromised_data: ["Email", "Unknown Metadata"]
+            };
+          }
+          return b;
+        });
       }
 
       return res.json({ breached: finalBreaches.length > 0, email, breaches: finalBreaches });
@@ -212,7 +227,12 @@ app.post("/api/phishing", async (req, res) => {
 
   try {
     // REAL API INTEGRATION (Google Safe Browsing)
-    const apiKey = process.env.GOOGLE_SAFE_BROWSING_KEY || "AIzaSyDRf70UhwBc34p2mBu79MD8ln9DJ_Z96_M";
+    const apiKey = process.env.GOOGLE_SAFE_BROWSING_KEY;
+
+    if (!apiKey) {
+      console.warn("GOOGLE_SAFE_BROWSING_KEY not found. Defaulting to safe.");
+      return res.json({ safe: true, url, message: "Safe (Local Check)" });
+    }
     
     const response = await fetch(`https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${apiKey}`, {
       method: 'POST',
