@@ -2,7 +2,6 @@ import express from "express";
 import path from "path";
 import multer from "multer";
 import crypto from "crypto";
-import { GoogleGenAI } from "@google/genai";
 import { createServer as createViteServer } from "vite";
 import cors from "cors";
 

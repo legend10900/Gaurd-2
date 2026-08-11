@@ -77,7 +77,6 @@ export default function AntivirusScreen({ onNavigate }: AntivirusScreenProps) {
       }
 
       // Web Fallback
-      // @ts-ignore
       const dirHandle = await window.showDirectoryPicker();
       setIsScanning(true);
       setScanComplete(false);

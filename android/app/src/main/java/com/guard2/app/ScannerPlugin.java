@@ -42,7 +42,8 @@ public class ScannerPlugin extends Plugin {
         ArrayList<String> filesFound = new ArrayList<>();
         
         // Example recursive scan logic limits to 100 files for demo speed
-        scanDirectory(root, filesFound, 0);
+        int[] count = new int[]{0};
+        scanDirectory(root, filesFound, count);
         
         JSObject ret = new JSObject();
         JSArray jsArray = new JSArray(filesFound);
@@ -50,17 +51,17 @@ public class ScannerPlugin extends Plugin {
         call.resolve(ret);
     }
     
-    private void scanDirectory(File dir, ArrayList<String> list, int count) {
-        if (count > 100) return;
+    private void scanDirectory(File dir, ArrayList<String> list, int[] count) {
+        if (count[0] > 100) return;
         File[] files = dir.listFiles();
         if (files != null) {
             for (File file : files) {
+                if (count[0] > 100) return;
                 if (file.isDirectory()) {
                     scanDirectory(file, list, count);
                 } else {
                     list.add(file.getAbsolutePath());
-                    count++;
-                    if (count > 100) return;
+                    count[0]++;
                 }
             }
         }
