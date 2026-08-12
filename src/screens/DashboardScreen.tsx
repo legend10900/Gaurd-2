@@ -22,6 +22,7 @@ interface DashboardScreenProps {
 export default function DashboardScreen({ onNavigate }: DashboardScreenProps) {
   const [securityScore, setSecurityScore] = useState(85);
   const [realtimeActive, setRealtimeActive] = useState(true);
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const [logs, setLogs] = useState<string[]>([
     "System boot sequence initialized...",
     "Loading heuristic engine v2.4...",
@@ -30,6 +31,29 @@ export default function DashboardScreen({ onNavigate }: DashboardScreenProps) {
   ]);
 
   useEffect(() => {
+    // Check backend connection
+    const checkBackend = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || "https://gaurdshield-2.onrender.com";
+        const res = await fetch(`${apiUrl}/api/phishing`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: 'https://google.com' })
+        });
+        if (res.ok) {
+          setBackendStatus('connected');
+          setLogs(prev => [...prev, "SUCCESS: Secure connection established to Cloud Threat Engine."]);
+        } else {
+          setBackendStatus('error');
+          setLogs(prev => [...prev, "WARNING: Cloud Threat Engine returned an error response."]);
+        }
+      } catch (e) {
+        setBackendStatus('error');
+        setLogs(prev => [...prev, "CRITICAL: Could not connect to Cloud Threat Engine (Render Backend)."]);
+      }
+    };
+    checkBackend();
+
     const interval = setInterval(() => {
       setLogs(prev => {
         const newLogs = [...prev, `Checking background process [PID: ${Math.floor(Math.random() * 9000) + 1000}] - OK`];
@@ -55,10 +79,12 @@ export default function DashboardScreen({ onNavigate }: DashboardScreenProps) {
           
           <div className="mt-4 text-center">
             <h3 className="text-white font-bold text-lg">Real-Time Antivirus Protection</h3>
-            <p className="text-gray-400 text-xs mt-1">
-              {realtimeActive 
-                ? "Active • Background malware monitoring enabled" 
-                : "Disabled • Enable to activate real-time guard"}
+            <p className={`text-xs mt-1 ${backendStatus === 'connected' ? 'text-cyber-green' : backendStatus === 'error' ? 'text-cyber-red' : 'text-gray-400'}`}>
+              {backendStatus === 'connected'
+                ? "Active • Cloud Threat Engine Connected"
+                : backendStatus === 'error'
+                ? "Disconnected • Cloud Threat Engine Unreachable"
+                : "Checking Cloud Connection..."}
             </p>
           </div>
 

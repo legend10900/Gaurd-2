@@ -5,22 +5,23 @@ All requested enhancements and fixes have been implemented. The app is now confi
 ## Troubleshooting & Setup Guide
 
 ### 1. Fix Backend Build on Render
-If your build failed with `vite: not found`, I have updated `package.json` to use `npx`.
-- **Action**: Redeploy your backend on Render. The build script now uses `npx vite build && npx esbuild server.ts ...` which is more reliable.
+The error `ERR_MODULE_NOT_FOUND: Cannot find package 'vite'` occurs because Render sometimes skips `devDependencies` during the build phase if not configured correctly.
+- **Action**: I have moved `vite`, `esbuild`, and other build tools to the `dependencies` section in `package.json`.
+- **Action**: I removed the invalid `packageManager` field which could cause version conflicts on Render.
+- **Action**: Redeploy your backend on Render. It will now find all necessary tools to complete the build.
 
-### 2. Running as a Native App
-To use functions like **App Lock**, **Whole Device Scan**, and **Accessibility Service**, the app MUST be run as a native Android app.
-- **Action**:
-    1. Run `npx cap sync android` in your terminal.
-    2. Open the `android` folder in **Android Studio**.
-    3. Run the app on a physical device or emulator.
-    4. **Permissions**: The app will automatically prompt you to open the Android Settings for **Usage Access**, **Overlay**, and **All Files Access**. You MUST manually enable these for "GuardShield" in the settings list.
+### 2. Permissions & Native Features
+On Android, high-level permissions (Usage Access, Overlay, All Files) **cannot be granted via a simple popup**. The app MUST take you to the System Settings.
+- **How to Grant**:
+    1. Click "Enable" or "Scan" in the app.
+    2. The app will open the **Android Settings** page automatically.
+    3. Scroll down to find **"GuardShield"**.
+    4. Click it and toggle the switch to **"Allow"** or **"On"**.
+    5. Press the Back button to return to the app. The app will now detect the permission is active.
 
-### 3. Backend Environment Variables
-Ensure the following are set in your **Render Dashboard (Environment Section)**:
-- `VIRUSTOTAL_API_KEY`: `2cb0b60bcf973d948fc510d772e12b5df4793f9b9599108870ee7311e231b780`
-- `GOOGLE_SAFE_BROWSING_KEY`: `AIzaSyDRf70UhwBc34p2mBu79MD8ln9DJ_Z96_M`
-- `CORS_ORIGIN`: `*` (Critical for connecting the mobile app to the server).
+### 3. Backend Connectivity
+- **Dashboard Check**: I've added a status check to ensure the frontend can see the backend.
+- **CORS**: Ensure your Render environment variable `CORS_ORIGIN` is set to `*`.
 
 ---
 
