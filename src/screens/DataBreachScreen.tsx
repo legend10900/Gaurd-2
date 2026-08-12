@@ -29,6 +29,7 @@ export default function DataBreachScreen({ onNavigate }: DataBreachScreenProps) 
     setHasSearched(false);
     
     const apiUrl = import.meta.env.VITE_API_URL || "https://gaurdshield-2.onrender.com";
+    const xApiKey = import.meta.env.VITE_XPOSEDORNOT_API_KEY || "";
 
     // Attempt backend first
     fetch(`${apiUrl}/api/breach`, {
@@ -47,7 +48,12 @@ export default function DataBreachScreen({ onNavigate }: DataBreachScreenProps) 
         console.warn("Backend breach check failed, trying XposedOrNot public API", err);
         try {
           // Fallback to public XposedOrNot API if backend is down
-          const response = await fetch(`https://xposedornot.com/api/v1/checkback/${email}`);
+          const headers: any = {};
+          if (xApiKey) headers['x-api-key'] = xApiKey;
+
+          const response = await fetch(`https://xposedornot.com/api/v1/checkback/${email}`, {
+            headers
+          });
           if (response.status === 200) {
             const xdata = await response.json();
             setIsBreached(true);

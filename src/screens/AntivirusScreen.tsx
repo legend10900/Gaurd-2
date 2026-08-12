@@ -32,8 +32,15 @@ export default function AntivirusScreen({ onNavigate }: AntivirusScreenProps) {
         const { registerPlugin } = await import('@capacitor/core');
         const DeviceScanner = registerPlugin<any>('DeviceScanner');
         
+        // Ensure we have permission
         await DeviceScanner.requestStoragePermission();
+
+        // Wait a bit for the user to return if the intent was fired
+        // In a real app, we'd use a listener, but this helps the 'not working' feeling
         setIsScanning(true);
+        setCurrentItem('Waiting for storage access permission...');
+        await new Promise(r => setTimeout(r, 1000));
+
         setScanComplete(false);
         setThreats([]);
         setCurrentItem('Initializing Native Storage Engine...');

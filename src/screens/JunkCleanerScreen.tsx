@@ -23,6 +23,11 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
   useEffect(() => {
     scanStorage();
     checkAccessibility();
+
+    // Refresh accessibility status when user returns
+    const handleFocus = () => checkAccessibility();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   const checkAccessibility = async () => {

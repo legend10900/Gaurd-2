@@ -25,14 +25,22 @@ export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
   const [isServiceRunning, setIsServiceRunning] = useState(false);
   const [permissions, setPermissions] = useState({ usage: false, overlay: false });
 
+  useEffect(() => {
+    checkPermissions();
+    // Check again when window gains focus (user returns from settings)
+    const handleFocus = () => checkPermissions();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
   const checkPermissions = async () => {
     try {
       const status = await AppLocker.checkPermissions();
       setPermissions(status);
       return status;
     } catch (e) {
-      console.warn("Native check failed", e);
-      return { usage: true, overlay: true };
+      console.warn("Native check failed - Browser mode detected.", e);
+      return { usage: false, overlay: false };
     }
   };
 
