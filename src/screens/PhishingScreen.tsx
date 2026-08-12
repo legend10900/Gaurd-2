@@ -64,7 +64,7 @@ export default function PhishingScreen({ onNavigate }: PhishingScreenProps) {
     const heuristicWarnings = inspectUrlHeuristics(formattedUrl);
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || "https://guardshield-2.onrender.com";
+      const apiUrl = import.meta.env.VITE_API_URL || "https://gaurdshield-2.onrender.com";
       const response = await fetch(`${apiUrl}/api/phishing`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

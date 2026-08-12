@@ -28,7 +28,7 @@ export default function DataBreachScreen({ onNavigate }: DataBreachScreenProps) 
     setIsSearching(true);
     setHasSearched(false);
     
-    const apiUrl = import.meta.env.VITE_API_URL || "https://guardshield-2.onrender.com";
+    const apiUrl = import.meta.env.VITE_API_URL || "https://gaurdshield-2.onrender.com";
     fetch(`${apiUrl}/api/breach`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

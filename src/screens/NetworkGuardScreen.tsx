@@ -45,7 +45,7 @@ export default function NetworkGuardScreen({ onNavigate }: NetworkGuardScreenPro
 
     const start = performance.now();
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || "https://guardshield-2.onrender.com";
+      const apiUrl = import.meta.env.VITE_API_URL || "https://gaurdshield-2.onrender.com";
       await fetch(`${apiUrl}/api/phishing`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

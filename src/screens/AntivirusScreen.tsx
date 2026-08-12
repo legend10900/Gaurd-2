@@ -43,15 +43,15 @@ export default function AntivirusScreen({ onNavigate }: AntivirusScreenProps) {
         setTotalItems(files.length);
         
         let foundThreats: Threat[] = [];
-        // Only scan a max of 50 for demo to prevent freezing
-        const limit = Math.min(files.length, 50);
-        
-        for (let i = 0; i < limit; i++) {
+
+        for (let i = 0; i < files.length; i++) {
           const fileName = files[i].split('/').pop() || "UnknownFile";
-          setCurrentItem(`Scanning Hash: ${fileName}`);
-          // Simulate local hashing logic for the bridge
-          const fakeHash = "simulated_hash_" + i; 
-          const apiUrl = import.meta.env.VITE_API_URL || "https://guardshield-2.onrender.com";
+          setCurrentItem(`Scanning: ${fileName}`);
+
+          // In a real device scan, we would generate the actual SHA-256 hash here.
+          // For now, we simulate a hash to query the backend.
+          const fakeHash = "simulated_hash_" + files[i];
+          const apiUrl = import.meta.env.VITE_API_URL || "https://gaurdshield-2.onrender.com";
           
           try {
             const res = await fetch(`${apiUrl}/api/scan-hash`, {
@@ -98,7 +98,7 @@ export default function AntivirusScreen({ onNavigate }: AntivirusScreenProps) {
              const formData = new FormData();
              formData.append("file", file);
              try {
-                 const apiUrl = import.meta.env.VITE_API_URL || "https://guardshield-2.onrender.com";
+                 const apiUrl = import.meta.env.VITE_API_URL || "https://gaurdshield-2.onrender.com";
                  const res = await fetch(`${apiUrl}/api/scan`, { method: "POST", body: formData });
                 const data = await res.json();
                 if (data.threatFound && data.threatDetails) {
@@ -133,7 +133,7 @@ export default function AntivirusScreen({ onNavigate }: AntivirusScreenProps) {
     const formData = new FormData();
     formData.append("file", file);
 
-    const apiUrl = import.meta.env.VITE_API_URL || "https://guardshield-2.onrender.com";
+    const apiUrl = import.meta.env.VITE_API_URL || "https://gaurdshield-2.onrender.com";
     fetch(`${apiUrl}/api/scan`, {
       method: "POST",
       body: formData,
@@ -235,7 +235,7 @@ export default function AntivirusScreen({ onNavigate }: AntivirusScreenProps) {
             className="flex-1 flex items-center justify-center gap-2 bg-cyber-bluePrimary hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg transition-colors"
           >
             <Shield size={20} />
-            <span>Scan Device Folder</span>
+            <span>Scan Whole Device</span>
           </button>
           
           <div className="flex gap-4 sm:flex-1">

@@ -15,8 +15,64 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import java.io.File;
 import java.util.ArrayList;
 
+import android.text.TextUtils;
+import android.util.Log;
+
+import android.content.IntentFilter;
+import android.os.BatteryManager;
+
 @CapacitorPlugin(name = "DeviceScanner")
 public class ScannerPlugin extends Plugin {
+
+    @PluginMethod
+    public void getBatteryTemperature(PluginCall call) {
+        Intent intent = getContext().registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        float temp = ((float) intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0)) / 10;
+        JSObject ret = new JSObject();
+        ret.put("temperature", temp);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void isAccessibilityServiceEnabled(PluginCall call) {
+        boolean enabled = false;
+        int accessibilityEnabled = 0;
+        final String service = getContext().getPackageName() + "/" + CacheAccessibilityService.class.getName();
+        try {
+            accessibilityEnabled = Settings.Secure.getInt(
+                    getContext().getApplicationContext().getContentResolver(),
+                    android.provider.Settings.Secure.ACCESSIBILITY_ENABLED);
+        } catch (Settings.SettingNotFoundException e) {
+            Log.e("ScannerPlugin", "Error finding setting, default is off", e);
+        }
+        TextUtils.SimpleStringSplitter mStringColonSplitter = new TextUtils.SimpleStringSplitter(':');
+
+        if (accessibilityEnabled == 1) {
+            String settingValue = Settings.Secure.getString(
+                    getContext().getApplicationContext().getContentResolver(),
+                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+            if (settingValue != null) {
+                mStringColonSplitter.setString(settingValue);
+                while (mStringColonSplitter.hasNext()) {
+                    String accessibilityService = mStringColonSplitter.next();
+                    if (accessibilityService.equalsIgnoreCase(service)) {
+                        enabled = true;
+                    }
+                }
+            }
+        }
+        JSObject ret = new JSObject();
+        ret.put("enabled", enabled);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void requestAccessibilityPermission(PluginCall call) {
+        Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(intent);
+        call.resolve();
+    }
 
     @PluginMethod
     public void requestStoragePermission(PluginCall call) {
@@ -41,9 +97,7 @@ public class ScannerPlugin extends Plugin {
         File root = Environment.getExternalStorageDirectory();
         ArrayList<String> filesFound = new ArrayList<>();
         
-        // Example recursive scan logic limits to 100 files for demo speed
-        int[] count = new int[]{0};
-        scanDirectory(root, filesFound, count);
+        scanDirectory(root, filesFound);
         
         JSObject ret = new JSObject();
         JSArray jsArray = new JSArray(filesFound);
@@ -109,17 +163,14 @@ public class ScannerPlugin extends Plugin {
         }
     }
     
-    private void scanDirectory(File dir, ArrayList<String> list, int[] count) {
-        if (count[0] > 100) return;
+    private void scanDirectory(File dir, ArrayList<String> list) {
         File[] files = dir.listFiles();
         if (files != null) {
             for (File file : files) {
-                if (count[0] > 100) return;
                 if (file.isDirectory()) {
-                    scanDirectory(file, list, count);
+                    scanDirectory(file, list);
                 } else {
                     list.add(file.getAbsolutePath());
-                    count[0]++;
                 }
             }
         }

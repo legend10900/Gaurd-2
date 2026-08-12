@@ -18,10 +18,21 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
   const [cleanedBytes, setCleanedBytes] = useState<number>(0);
   const [cleaned, setCleaned] = useState(false);
   const [cacheCount, setCacheCount] = useState<number>(0);
+  const [accessibilityEnabled, setAccessibilityEnabled] = useState(false);
 
   useEffect(() => {
     scanStorage();
+    checkAccessibility();
   }, []);
+
+  const checkAccessibility = async () => {
+    try {
+      const res = await DeviceScanner.isAccessibilityServiceEnabled();
+      setAccessibilityEnabled(res.enabled);
+    } catch (e) {
+      console.warn("Accessibility check failed", e);
+    }
+  };
 
   const scanStorage = async () => {
     setIsScanning(true);
@@ -32,8 +43,6 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
         const result = await DeviceScanner.getJunkSize();
         if (result.sizeBytes > 0) {
           setUsedBytes(result.sizeBytes);
-          setIsScanning(false);
-          return;
         }
       } catch (e) {
         console.warn("Native scanner not available, using web storage");
@@ -42,7 +51,7 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
       // 2. Web Storage Fallback
       if (navigator.storage && navigator.storage.estimate) {
         const estimate = await navigator.storage.estimate();
-        setUsedBytes(estimate.usage || 0);
+        if (!usedBytes) setUsedBytes(estimate.usage || 0);
         setQuotaBytes(estimate.quota || 0);
       }
       if ('caches' in window) {
@@ -57,6 +66,14 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
   };
 
   const handleClean = async () => {
+    if (!accessibilityEnabled) {
+      const confirm = window.confirm("Automated cache cleaning requires Accessibility Service permission. Enable now?");
+      if (confirm) {
+        await DeviceScanner.requestAccessibilityPermission();
+        return;
+      }
+    }
+
     setIsCleaning(true);
     let freed = 0;
     try {

@@ -8,28 +8,47 @@ interface BatteryCoolerScreenProps {
   onNavigate: (screen: Screen) => void;
 }
 
+import { registerPlugin } from '@capacitor/core';
+const DeviceScanner = registerPlugin<any>('DeviceScanner');
+
 export default function BatteryCoolerScreen({ onNavigate }: BatteryCoolerScreenProps) {
-  const [temperature, setTemperature] = useState(38.5);
+  const [temperature, setTemperature] = useState(36.5);
   const [isCooling, setIsCooling] = useState(false);
   const [cooled, setCooled] = useState(false);
   const [batteryInfo, setBatteryInfo] = useState<BatteryInfo | null>(null);
 
   useEffect(() => {
     Device.getBatteryInfo().then(info => setBatteryInfo(info)).catch(e => console.warn("Battery info not available:", e));
+
+    // Fetch real temperature
+    const fetchTemp = async () => {
+      try {
+        const result = await DeviceScanner.getBatteryTemperature();
+        if (result && result.temperature) {
+          setTemperature(result.temperature);
+        }
+      } catch (e) {
+        console.warn("Native temperature fetch failed", e);
+      }
+    };
+    fetchTemp();
+    const interval = setInterval(fetchTemp, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const startCooling = () => {
     setIsCooling(true);
+    // Simulate cooling effect visually
     let temp = temperature;
     const interval = setInterval(() => {
-      temp -= 0.5;
+      temp -= 0.2;
       setTemperature(temp);
       if (temp <= 31.0) {
         clearInterval(interval);
         setIsCooling(false);
         setCooled(true);
       }
-    }, 300);
+    }, 500);
   };
 
   const isHot = temperature > 35;

@@ -1,9 +1,11 @@
 package com.guard2.app;
 
+import android.app.usage.UsageEvents;
 import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.provider.Settings;
 import android.util.Log;
 
@@ -60,30 +62,32 @@ public class AppLockerPlugin extends Plugin {
                     if (lockedApps.contains(foregroundApp) && !foregroundApp.equals(lastApp)) {
                         Log.d("AppLocker", "Locking app: " + foregroundApp);
                         Intent intent = new Intent(getContext(), LockActivity.class);
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
                         getContext().startActivity(intent);
                     }
                     lastApp = foregroundApp;
+                } else if (foregroundApp != null && foregroundApp.equals(getContext().getPackageName())) {
+                    // Reset lastApp when our app is in foreground to allow re-locking if user switches back
+                    lastApp = "";
                 }
             }
-        }, 0, 1000);
+        }, 0, 500); // Check every 500ms for better responsiveness
         
         call.resolve();
     }
     
     private String getForegroundApp(UsageStatsManager usm) {
         long time = System.currentTimeMillis();
-        List<UsageStats> appList = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, time - 1000 * 10, time);
-        if (appList != null && appList.size() > 0) {
-            UsageStats bestStat = null;
-            for (UsageStats stat : appList) {
-                if (bestStat == null || stat.getLastTimeUsed() > bestStat.getLastTimeUsed()) {
-                    bestStat = stat;
-                }
+        UsageEvents events = usm.queryEvents(time - 2000, time);
+        UsageEvents.Event event = new UsageEvents.Event();
+        String lastPackage = null;
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event);
+            if (event.getEventType() == UsageEvents.Event.MOVE_TO_FOREGROUND) {
+                lastPackage = event.getPackageName();
             }
-            return bestStat != null ? bestStat.getPackageName() : null;
         }
-        return null;
+        return lastPackage;
     }
 
     @PluginMethod
@@ -98,5 +102,38 @@ public class AppLockerPlugin extends Plugin {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         getContext().startActivity(intent);
         call.resolve();
+    }
+
+    @PluginMethod
+    public void requestOverlayPermission(PluginCall call) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            if (!Settings.canDrawOverlays(getContext())) {
+                Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:" + getContext().getPackageName()));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(intent);
+            }
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void checkPermissions(PluginCall call) {
+        JSObject ret = new JSObject();
+        boolean usage = false;
+        boolean overlay = true;
+
+        UsageStatsManager usm = (UsageStatsManager) getContext().getSystemService(Context.USAGE_STATS_SERVICE);
+        long time = System.currentTimeMillis();
+        List<UsageStats> stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, time - 1000 * 60, time);
+        usage = (stats != null && !stats.isEmpty());
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            overlay = Settings.canDrawOverlays(getContext());
+        }
+
+        ret.put("usage", usage);
+        ret.put("overlay", overlay);
+        call.resolve(ret);
     }
 }

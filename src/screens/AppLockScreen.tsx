@@ -23,19 +23,66 @@ export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
   const [appList, setAppList] = useState(initialApps);
   const [searchTerm, setSearchTerm] = useState('');
   const [isServiceRunning, setIsServiceRunning] = useState(false);
-  const [pinCode, setPinCode] = useState('');
-  const [pinSet, setPinSet] = useState(false);
+  const [permissions, setPermissions] = useState({ usage: false, overlay: false });
+
+  const checkPermissions = async () => {
+    try {
+      const status = await AppLocker.checkPermissions();
+      setPermissions(status);
+      return status;
+    } catch (e) {
+      console.warn("Native check failed", e);
+      return { usage: true, overlay: true };
+    }
+  };
 
   const toggleLock = (id: string) => {
-    setAppList(prev => prev.map(app => 
+    const newList = appList.map(app =>
       app.id === id ? { ...app, locked: !app.locked } : app
-    ));
+    );
+    setAppList(newList);
+
+    // Sync with native plugin
+    const lockedPackageNames = newList
+      .filter(a => a.locked)
+      .map(a => {
+        // Map friendly names to actual package names for testing
+        // In a real app, we'd list actual installed packages
+        if (a.name === 'WhatsApp') return 'com.whatsapp';
+        if (a.name === 'Gallery') return 'com.android.gallery3d';
+        if (a.name === 'Banking') return 'com.bank.app';
+        if (a.name === 'Settings') return 'com.android.settings';
+        return `com.example.${a.name.toLowerCase()}`;
+      });
+
+    AppLocker.setLockedApps({ apps: lockedPackageNames }).catch(console.error);
   };
 
   const toggleNativeService = async () => {
     try {
       if (!isServiceRunning) {
-        await AppLocker.requestUsagePermission();
+        const status = await checkPermissions();
+        if (!status.usage) {
+          await AppLocker.requestUsagePermission();
+          return;
+        }
+        if (!status.overlay) {
+          await AppLocker.requestOverlayPermission();
+          return;
+        }
+
+        // Sync locked apps before starting
+        const lockedPackageNames = appList
+          .filter(a => a.locked)
+          .map(a => {
+            if (a.name === 'WhatsApp') return 'com.whatsapp';
+            if (a.name === 'Gallery') return 'com.android.gallery3d';
+            if (a.name === 'Banking') return 'com.bank.app';
+            if (a.name === 'Settings') return 'com.android.settings';
+            return `com.example.${a.name.toLowerCase()}`;
+          });
+        await AppLocker.setLockedApps({ apps: lockedPackageNames });
+
         await AppLocker.startMonitoring();
         setIsServiceRunning(true);
       } else {
@@ -83,7 +130,10 @@ export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
             onClick={toggleNativeService}
             className={`w-full py-3 rounded-lg font-bold transition-colors ${isServiceRunning ? 'bg-cyber-red/20 text-cyber-red border border-cyber-red/50 hover:bg-cyber-red/30' : 'bg-cyber-bluePrimary hover:bg-blue-600 text-white'}`}
           >
-            {isServiceRunning ? 'Disable Overlay Protection' : 'Enable Native Overlay Service (APK Mode)'}
+            {isServiceRunning ? 'Disable Overlay Protection' :
+             !permissions.usage ? 'Grant Usage Access' :
+             !permissions.overlay ? 'Grant Overlay Access' :
+             'Enable Native Overlay Service'}
           </button>
         </div>
 

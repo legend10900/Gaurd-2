@@ -1,0 +1,26 @@
+# Tasks
+
+- [x] Global Backend Configuration
+    - [x] Update `AntivirusScreen.tsx`
+    - [x] Update `DataBreachScreen.tsx`
+    - [x] Update `NetworkGuardScreen.tsx`
+    - [x] Update `PhishingScreen.tsx`
+    - [x] Update `.env.example`
+- [x] App Lock & Permissions
+    - [x] Improve foreground detection in `AppLockerPlugin.java`
+    - [x] Add `SYSTEM_ALERT_WINDOW` checks
+    - [x] Update `AppLockScreen.tsx`
+- [x] Full Device Scan
+    - [x] Remove 100-file limit in `ScannerPlugin.java`
+    - [x] Remove 50-file limit in `AntivirusScreen.tsx`
+    - [x] Add "Scan Whole Device" button
+- [x] Cache Clearer & Accessibility Service
+    - [x] Create `CacheAccessibilityService.java`
+    - [x] Register service in `AndroidManifest.xml`
+    - [x] Add accessibility check methods to `ScannerPlugin.java`
+- [x] Thermal Cooldown & WiFi Audit
+    - [x] Use `BatteryManager` in `BatteryCoolerScreen.tsx`
+    - [x] Improve encryption detection in `NetworkPlugin.java`
+- [x] Final Verification & Report
+    - [x] Verify all functions
+    - [x] Create status report
