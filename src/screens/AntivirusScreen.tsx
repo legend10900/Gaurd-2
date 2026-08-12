@@ -45,19 +45,20 @@ export default function AntivirusScreen({ onNavigate }: AntivirusScreenProps) {
         let foundThreats: Threat[] = [];
 
         for (let i = 0; i < files.length; i++) {
-          const fileName = files[i].split('/').pop() || "UnknownFile";
+          const filePath = files[i];
+          const fileName = filePath.split('/').pop() || "UnknownFile";
           setCurrentItem(`Scanning: ${fileName}`);
 
-          // In a real device scan, we would generate the actual SHA-256 hash here.
-          // For now, we simulate a hash to query the backend.
-          const fakeHash = "simulated_hash_" + files[i];
-          const apiUrl = import.meta.env.VITE_API_URL || "https://gaurdshield-2.onrender.com";
-          
           try {
+            // Get real hash from native plugin
+            const hashResult = await DeviceScanner.getFileHash({ path: filePath });
+            const realHash = hashResult.hash;
+            const apiUrl = import.meta.env.VITE_API_URL || "https://gaurdshield-2.onrender.com";
+
             const res = await fetch(`${apiUrl}/api/scan-hash`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ hash: fakeHash, filename: fileName })
+              body: JSON.stringify({ hash: realHash, filename: fileName })
             });
             const data = await res.json();
             if (data.threatFound && data.threatDetails) {

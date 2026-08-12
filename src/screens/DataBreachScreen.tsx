@@ -29,6 +29,8 @@ export default function DataBreachScreen({ onNavigate }: DataBreachScreenProps) 
     setHasSearched(false);
     
     const apiUrl = import.meta.env.VITE_API_URL || "https://gaurdshield-2.onrender.com";
+
+    // Attempt backend first
     fetch(`${apiUrl}/api/breach`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -41,11 +43,29 @@ export default function DataBreachScreen({ onNavigate }: DataBreachScreenProps) 
         setIsBreached(data.breached);
         setBreaches(data.breaches || []);
       })
-      .catch(err => {
-        console.error("Breach check error", err);
+      .catch(async err => {
+        console.warn("Backend breach check failed, trying XposedOrNot public API", err);
+        try {
+          // Fallback to public XposedOrNot API if backend is down
+          const response = await fetch(`https://xposedornot.com/api/v1/checkback/${email}`);
+          if (response.status === 200) {
+            const xdata = await response.json();
+            setIsBreached(true);
+            setBreaches(xdata.breaches[0].map((b: any) => ({
+              source: b,
+              date: "Unknown",
+              description: "Found in XposedOrNot database.",
+              compromised_data: ["Email", "Unknown"]
+            })));
+          } else {
+            setIsBreached(false);
+          }
+        } catch (xerr) {
+          console.error("XposedOrNot fallback failed", xerr);
+          setIsBreached(false);
+        }
         setIsSearching(false);
         setHasSearched(true);
-        setIsBreached(false);
       });
   };
 

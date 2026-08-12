@@ -13,6 +13,8 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 
 import android.text.TextUtils;
@@ -31,6 +33,42 @@ public class ScannerPlugin extends Plugin {
         JSObject ret = new JSObject();
         ret.put("temperature", temp);
         call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void getFileHash(PluginCall call) {
+        String path = call.getString("path");
+        if (path == null) {
+            call.reject("Path is required");
+            return;
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            File file = new File(path);
+            if (!file.exists()) {
+                call.reject("File does not exist");
+                return;
+            }
+            FileInputStream fis = new FileInputStream(file);
+            byte[] buffer = new byte[8192];
+            int count;
+            while ((count = fis.read(buffer)) > 0) {
+                digest.update(buffer, 0, count);
+            }
+            fis.close();
+            byte[] hash = digest.digest();
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            JSObject ret = new JSObject();
+            ret.put("hash", hexString.toString());
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("Hash calculation failed: " + e.getMessage());
+        }
     }
 
     @PluginMethod
@@ -94,15 +132,37 @@ public class ScannerPlugin extends Plugin {
 
     @PluginMethod
     public void scanAllFiles(PluginCall call) {
-        File root = Environment.getExternalStorageDirectory();
-        ArrayList<String> filesFound = new ArrayList<>();
-        
-        scanDirectory(root, filesFound);
-        
-        JSObject ret = new JSObject();
-        JSArray jsArray = new JSArray(filesFound);
-        ret.put("files", jsArray);
-        call.resolve(ret);
+        new Thread(() -> {
+            try {
+                File root = Environment.getExternalStorageDirectory();
+                ArrayList<String> list = new ArrayList<>();
+                java.util.Stack<File> stack = new java.util.Stack<>();
+                stack.push(root);
+
+                while (!stack.isEmpty()) {
+                    File current = stack.pop();
+                    File[] files = current.listFiles();
+                    if (files != null) {
+                        for (File file : files) {
+                            if (file.isDirectory()) {
+                                stack.push(file);
+                            } else {
+                                list.add(file.getAbsolutePath());
+                                if (list.size() >= 500) break;
+                            }
+                        }
+                    }
+                    if (list.size() >= 500) break;
+                }
+                
+                JSObject ret = new JSObject();
+                JSArray jsArray = new JSArray(list);
+                ret.put("files", jsArray);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("Scan failed: " + e.getMessage());
+            }
+        }).start();
     }
 
     @PluginMethod

@@ -17,11 +17,12 @@ All requested enhancements and fixes have been implemented. Below is a summary o
     - Updated `AppLockScreen.tsx` to guide the user through permission steps.
 
 ### 3. Full Device Scanner (Antivirus)
-- **Status**: ✅ **Working**
+- **Status**: ✅ **Working (Native)**
 - **Changes**:
-    - Removed the 100-file traversal limit in the native `ScannerPlugin`.
-    - Removed the 50-file limit in the `AntivirusScreen` React UI.
-    - Added explicit "Scan Whole Device" button that requests `MANAGE_EXTERNAL_STORAGE` permission on Android 11+.
+    - Implemented a **background thread** for scanning in `ScannerPlugin.java` to prevent UI freezing.
+    - Switched to an **iterative stack-based traversal** to avoid `StackOverflowError` on deep directories.
+    - Added native **SHA-256 hash calculation** (`getFileHash`) so the app performs real security checks on-device.
+    - The Antivirus screen now uses these real native hashes to query the threat database.
 
 ### 4. Cache Clearer & Accessibility
 - **Status**: ✅ **Working**
@@ -30,6 +31,18 @@ All requested enhancements and fixes have been implemented. Below is a summary o
     - Registered the service in `AndroidManifest.xml` with required permissions and config.
     - Added `isAccessibilityServiceEnabled` check to the plugin.
     - Updated `JunkCleanerScreen.tsx` to prompt the user to enable the service for automated cleaning.
+
+### 5. Data Breach Guard
+- **Status**: ✅ **Working (With Fallback)**
+- **Changes**:
+    - Added a **native fallback** to the `XposedOrNot` public API if the primary Render backend is unreachable.
+    - This ensures the email check works even if the server is down.
+
+## External API Keys Added
+The following keys have been integrated into the project configuration:
+- `VIRUSTOTAL_API_KEY`: `2cb...b780`
+- `GOOGLE_SAFE_BROWSING_KEY`: `AIza...Z96_M`
+- `XPOSEDORNOT_API_KEY`: Field added to `.env`.
 
 ### 5. Thermal & Battery Monitor
 - **Status**: ✅ **Working (Native Data)**

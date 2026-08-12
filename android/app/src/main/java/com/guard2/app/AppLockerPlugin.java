@@ -123,10 +123,12 @@ public class AppLockerPlugin extends Plugin {
         boolean usage = false;
         boolean overlay = true;
 
-        UsageStatsManager usm = (UsageStatsManager) getContext().getSystemService(Context.USAGE_STATS_SERVICE);
-        long time = System.currentTimeMillis();
-        List<UsageStats> stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, time - 1000 * 60, time);
-        usage = (stats != null && !stats.isEmpty());
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+            android.app.AppOpsManager appOps = (android.app.AppOpsManager) getContext().getSystemService(Context.APP_OPS_SERVICE);
+            int mode = appOps.checkOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
+                    android.os.Process.myUid(), getContext().getPackageName());
+            usage = (mode == android.app.AppOpsManager.MODE_ALLOWED);
+        }
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             overlay = Settings.canDrawOverlays(getContext());
