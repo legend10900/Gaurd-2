@@ -276,8 +276,18 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
+    app.use((req, res, next) => {
+      if (req.path === "/" || req.path === "/index.html") {
+        res.setHeader("Cache-Control", "no-cache");
+      }
+      next();
+    });
     app.use(express.static(distPath));
     app.get("*all", (req, res) => {
+      const ext = path.extname(req.path);
+      if (req.path.startsWith("/assets/") || (ext && ext !== ".html")) {
+        return res.status(404).end();
+      }
       res.sendFile(path.join(distPath, "index.html"));
     });
   }

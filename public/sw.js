@@ -1,15 +1,15 @@
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open('guardshield-store').then((cache) => cache.addAll([
-      '/',
-      '/index.html',
-      '/icon.svg'
-    ])),
-  );
+// GuardShield service worker - self-healing.
+// Clears all stale caches and unregisters itself so the app always loads
+// fresh assets from the server. No offline caching is needed for this web app.
+self.addEventListener('install', () => {
+  self.skipWaiting();
 });
 
-self.addEventListener('fetch', (e) => {
-  e.respondWith(
-    caches.match(e.request).then((response) => response || fetch(e.request)),
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    Promise.all([
+      caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key)))),
+      self.registration.unregister(),
+    ]).then(() => self.clients.claim())
   );
 });
