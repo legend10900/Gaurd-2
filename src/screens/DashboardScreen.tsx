@@ -6,7 +6,6 @@ import {
   Trash2, 
   Lock, 
   AlertTriangle, 
-  Info,
   Fish
 } from 'lucide-react';
 import CyberHeader from '../components/CyberHeader';
@@ -20,7 +19,7 @@ interface DashboardScreenProps {
 }
 
 export default function DashboardScreen({ onNavigate }: DashboardScreenProps) {
-  const [securityScore, setSecurityScore] = useState(85);
+  const [securityScore, setSecurityScore] = useState(50);
   const [realtimeActive, setRealtimeActive] = useState(true);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const [logs, setLogs] = useState<string[]>([
@@ -42,13 +41,16 @@ export default function DashboardScreen({ onNavigate }: DashboardScreenProps) {
         });
         if (res.ok) {
           setBackendStatus('connected');
+          setSecurityScore(92);
           setLogs(prev => [...prev, "SUCCESS: Secure connection established to Cloud Threat Engine."]);
         } else {
           setBackendStatus('error');
+          setSecurityScore(40);
           setLogs(prev => [...prev, "WARNING: Cloud Threat Engine returned an error response."]);
         }
       } catch (e) {
         setBackendStatus('error');
+        setSecurityScore(40);
         setLogs(prev => [...prev, "CRITICAL: Could not connect to Cloud Threat Engine (Render Backend)."]);
       }
     };
@@ -59,7 +61,6 @@ export default function DashboardScreen({ onNavigate }: DashboardScreenProps) {
         const newLogs = [...prev, `Checking background process [PID: ${Math.floor(Math.random() * 9000) + 1000}] - OK`];
         return newLogs.slice(-20);
       });
-      setSecurityScore(prev => Math.min(100, Math.max(0, prev + (Math.random() * 2 - 1))));
     }, 4000);
     return () => clearInterval(interval);
   }, []);
@@ -105,31 +106,21 @@ export default function DashboardScreen({ onNavigate }: DashboardScreenProps) {
           </div>
         </div>
 
-        {/* Console & Quick actions */}
+        {/* Console */}
         <div className="flex flex-col gap-4">
           <CyberTerminalConsole logs={logs} />
-          <div className="bg-cyber-darkCard/50 border border-cyber-yellow/30 rounded-xl p-4 flex flex-col justify-center flex-1">
-            <div className="flex items-center gap-2 mb-2 text-cyber-yellow">
-              <AlertTriangle size={18} />
-              <span className="font-bold text-sm uppercase tracking-wide">Action Required</span>
+          <div className="bg-cyber-darkCard/50 border border-cyber-bluePrimary/20 rounded-xl p-4 flex flex-col justify-center flex-1">
+            <div className="flex items-center gap-2 mb-2 text-cyber-bluePrimary">
+              <Shield size={18} />
+              <span className="font-bold text-sm uppercase tracking-wide">Module Status</span>
             </div>
-            <p className="text-xs text-gray-300 mb-4">
-              Your system cache is growing large (1.2GB) and an app is using dangerous permissions.
+            <p className="text-xs text-gray-300">
+              {backendStatus === 'connected'
+                ? "All security modules are online and connected to the cloud threat engine."
+                : backendStatus === 'error'
+                ? "Cloud threat engine unreachable. Local heuristic inspection still active."
+                : "Contacting cloud threat engine..."}
             </p>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => onNavigate('junkcleaner')}
-                className="flex-1 bg-cyber-cyanAccent/10 text-cyber-cyanAccent hover:bg-cyber-cyanAccent/20 border border-cyber-cyanAccent/50 py-2 rounded font-bold text-xs transition-colors"
-              >
-                Clean Junk
-              </button>
-              <button 
-                onClick={() => onNavigate('unimplemented')}
-                className="flex-1 bg-cyber-yellow/10 text-cyber-yellow hover:bg-cyber-yellow/20 border border-cyber-yellow/50 py-2 rounded font-bold text-xs transition-colors"
-              >
-                Fix Privacy
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -192,14 +183,6 @@ export default function DashboardScreen({ onNavigate }: DashboardScreenProps) {
           badgeText="Dark Web API"
           accentColor="#ff1744"
           onClick={() => onNavigate('databreach')}
-        />
-        <CyberModuleCard
-          title="Privacy & Compliance"
-          subtitle="Manage localized policies, GDPR/CCPA rights"
-          icon={Info}
-          badgeText="Global Rights"
-          accentColor="#00ffff"
-          onClick={() => onNavigate('unimplemented')}
         />
       </div>
     </div>

@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Trash2, HardDrive, Cpu, CheckCircle } from 'lucide-react';
-import { registerPlugin } from '@capacitor/core';
+import { Trash2, HardDrive, Cpu, CheckCircle, Info } from 'lucide-react';
 import CyberHeader from '../components/CyberHeader';
 import { Screen } from '../App';
-
-const DeviceScanner = registerPlugin<any>('DeviceScanner');
 
 interface JunkCleanerScreenProps {
   onNavigate: (screen: Screen) => void;
@@ -18,45 +15,18 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
   const [cleanedBytes, setCleanedBytes] = useState<number>(0);
   const [cleaned, setCleaned] = useState(false);
   const [cacheCount, setCacheCount] = useState<number>(0);
-  const [accessibilityEnabled, setAccessibilityEnabled] = useState(false);
 
   useEffect(() => {
     scanStorage();
-    checkAccessibility();
-
-    // Refresh accessibility status when user returns
-    const handleFocus = () => checkAccessibility();
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
   }, []);
-
-  const checkAccessibility = async () => {
-    try {
-      const res = await DeviceScanner.isAccessibilityServiceEnabled();
-      setAccessibilityEnabled(res.enabled);
-    } catch (e) {
-      console.warn("Accessibility check failed", e);
-    }
-  };
 
   const scanStorage = async () => {
     setIsScanning(true);
     setCleaned(false);
     try {
-      // 1. Native Scan (if available)
-      try {
-        const result = await DeviceScanner.getJunkSize();
-        if (result.sizeBytes > 0) {
-          setUsedBytes(result.sizeBytes);
-        }
-      } catch (e) {
-        console.warn("Native scanner not available, using web storage");
-      }
-
-      // 2. Web Storage Fallback
       if (navigator.storage && navigator.storage.estimate) {
         const estimate = await navigator.storage.estimate();
-        if (!usedBytes) setUsedBytes(estimate.usage || 0);
+        setUsedBytes(estimate.usage || 0);
         setQuotaBytes(estimate.quota || 0);
       }
       if ('caches' in window) {
@@ -71,25 +41,9 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
   };
 
   const handleClean = async () => {
-    if (!accessibilityEnabled) {
-      const confirm = window.confirm("Automated cache cleaning requires Accessibility Service permission. Enable now?");
-      if (confirm) {
-        await DeviceScanner.requestAccessibilityPermission();
-        return;
-      }
-    }
-
     setIsCleaning(true);
     let freed = 0;
     try {
-      // 1. Native Clean
-      try {
-        await DeviceScanner.cleanJunk();
-      } catch (e) {
-        console.warn("Native clean failed");
-      }
-
-      // 2. Clear Web Cache Storage API
       if ('caches' in window) {
         const keys = await caches.keys();
         for (const key of keys) {
@@ -97,19 +51,20 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
         }
       }
       
-      // 2. Clear Session Storage
       sessionStorage.clear();
-      
-      // Estimate freed bytes
-      freed = usedBytes > 0 ? usedBytes : 1024 * 1024 * 15;
-      setCleanedBytes(freed);
 
-      // Re-estimate
+      const freedFromCaches = cacheCount * 1024 * 1024;
+      const estimateBefore = usedBytes;
       if (navigator.storage && navigator.storage.estimate) {
         const estimate = await navigator.storage.estimate();
         setUsedBytes(estimate.usage || 0);
+        freed = estimateBefore > 0 ? Math.max(estimateBefore - (estimate.usage || 0), 0) : freedFromCaches;
+      } else {
+        freed = freedFromCaches;
       }
 
+      setCleanedBytes(freed);
+      setCacheCount(0);
       setCleaned(true);
     } catch (err) {
       console.error("Clean error:", err);
@@ -186,6 +141,13 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
           <Trash2 size={20} />
           {cleaned ? 'Storage Cleaned' : 'Clear Cache & Temp Files'}
         </button>
+
+        <div className="mt-4 w-full max-w-sm flex items-start gap-2 bg-cyber-navy border border-gray-800 rounded-xl p-3 text-left">
+          <Info size={16} className="text-cyber-cyanAccent shrink-0 mt-0.5" />
+          <p className="text-gray-400 text-xs leading-relaxed">
+            Clears this browser's cache, service worker storage, and session data. Full device junk scanning requires the Android APK build.
+          </p>
+        </div>
       </div>
 
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -218,4 +180,3 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
     </div>
   );
 }
-

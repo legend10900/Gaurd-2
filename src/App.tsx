@@ -8,7 +8,7 @@ import PhishingScreen from './screens/PhishingScreen';
 import NetworkScreen from './screens/NetworkScreen';
 import AppLockScreen from './screens/AppLockScreen';
 
-export type Screen = 'dashboard' | 'antivirus' | 'databreach' | 'junkcleaner' | 'batterycooler' | 'unimplemented' | 'phishing' | 'network' | 'applock';
+export type Screen = 'dashboard' | 'antivirus' | 'databreach' | 'junkcleaner' | 'batterycooler' | 'phishing' | 'network' | 'applock';
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
@@ -35,21 +35,6 @@ function App() {
         return <NetworkScreen onNavigate={navigate} />;
       case 'applock':
         return <AppLockScreen onNavigate={navigate} />;
-      case 'unimplemented':
-        return (
-          <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center">
-            <h2 className="text-2xl font-bold text-cyber-cyanAccent mb-4">Module Locked / In Development</h2>
-            <p className="text-gray-400 mb-8 max-w-md">
-              This security module is not available in the web version or is currently undergoing maintenance.
-            </p>
-            <button
-              onClick={() => navigate('dashboard')}
-              className="px-6 py-2 bg-cyber-bluePrimary hover:bg-blue-600 text-white rounded-lg font-semibold transition-colors"
-            >
-              Return to Dashboard
-            </button>
-          </div>
-        );
       default:
         return <DashboardScreen onNavigate={navigate} />;
     }

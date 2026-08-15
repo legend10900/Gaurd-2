@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Lock, Search, ShieldAlert, ShieldCheck, Info } from 'lucide-react';
 import { registerPlugin } from '@capacitor/core';
 import CyberHeader from '../components/CyberHeader';
@@ -19,8 +19,28 @@ const initialApps = [
   { id: '6', name: 'Browser', icon: 'O', locked: false, risk: 'medium' },
 ];
 
+const STORAGE_KEY = 'guardshield-applocks';
+
+function loadAppList() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        return initialApps.map(app => {
+          const savedApp = parsed.find((p: any) => p.id === app.id);
+          return savedApp ? { ...app, locked: !!savedApp.locked } : app;
+        });
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to load app lock state:", e);
+  }
+  return initialApps;
+}
+
 export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
-  const [appList, setAppList] = useState(initialApps);
+  const [appList, setAppList] = useState(loadAppList);
   const [searchTerm, setSearchTerm] = useState('');
   const [isServiceRunning, setIsServiceRunning] = useState(false);
   const [permissions, setPermissions] = useState({ usage: false, overlay: false });
@@ -49,6 +69,11 @@ export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
       app.id === id ? { ...app, locked: !app.locked } : app
     );
     setAppList(newList);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newList));
+    } catch (e) {
+      console.warn("Failed to persist app lock state:", e);
+    }
 
     // Sync with native plugin
     const lockedPackageNames = newList
@@ -63,7 +88,9 @@ export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
         return `com.example.${a.name.toLowerCase()}`;
       });
 
-    AppLocker.setLockedApps({ apps: lockedPackageNames }).catch(console.error);
+    AppLocker.setLockedApps({ apps: lockedPackageNames }).catch(() => {
+      // Native sync only works inside the Android APK build
+    });
   };
 
   const toggleNativeService = async () => {
