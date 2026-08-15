@@ -260,6 +260,12 @@ app.post("/api/phishing", async (req, res) => {
 });
 
 
+// Health check endpoint for Render
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", uptime: process.uptime() });
+});
+
+
 // --- Vite Middleware & Static Serving ---
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

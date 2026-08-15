@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: gaurdshield-2
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VITE_API_URL
+        value: https://gaurdshield-2.onrender.com
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: VIRUSTOTAL_API_KEY
+        sync: false
+      - key: GOOGLE_SAFE_BROWSING_KEY
+        sync: false
+      - key: XPOSEDORNOT_API_KEY
+        sync: false
