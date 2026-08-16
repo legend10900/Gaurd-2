@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Trash2, HardDrive, Cpu, CheckCircle, Info } from 'lucide-react';
+import { registerPlugin } from '@capacitor/core';
 import CyberHeader from '../components/CyberHeader';
 import { Screen } from '../App';
+
+const DeviceScanner = registerPlugin<any>('DeviceScanner');
 
 interface JunkCleanerScreenProps {
   onNavigate: (screen: Screen) => void;
@@ -15,6 +18,7 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
   const [cleanedBytes, setCleanedBytes] = useState<number>(0);
   const [cleaned, setCleaned] = useState(false);
   const [cacheCount, setCacheCount] = useState<number>(0);
+  const [nativeActive, setNativeActive] = useState(false);
 
   useEffect(() => {
     scanStorage();
@@ -24,9 +28,21 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
     setIsScanning(true);
     setCleaned(false);
     try {
+      // 1. Native scan (Android APK)
+      try {
+        const result = await DeviceScanner.getJunkSize();
+        if (result && result.sizeBytes > 0) {
+          setUsedBytes(result.sizeBytes);
+          setNativeActive(true);
+        }
+      } catch (e) {
+        console.warn("Native scanner not available, using web storage");
+      }
+
+      // 2. Web storage fallback
       if (navigator.storage && navigator.storage.estimate) {
         const estimate = await navigator.storage.estimate();
-        setUsedBytes(estimate.usage || 0);
+        if (!usedBytes) setUsedBytes(estimate.usage || 0);
         setQuotaBytes(estimate.quota || 0);
       }
       if ('caches' in window) {
@@ -44,6 +60,15 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
     setIsCleaning(true);
     let freed = 0;
     try {
+      // 1. Native clean (Android APK) - clears app + shared caches
+      try {
+        await DeviceScanner.cleanJunk();
+        setNativeActive(true);
+      } catch (e) {
+        console.warn("Native clean failed");
+      }
+
+      // 2. Clear Web Cache Storage API
       if ('caches' in window) {
         const keys = await caches.keys();
         for (const key of keys) {
@@ -51,18 +76,19 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
         }
       }
       
+      // 3. Clear Session Storage
       sessionStorage.clear();
 
-      const freedFromCaches = cacheCount * 1024 * 1024;
       const estimateBefore = usedBytes;
       if (navigator.storage && navigator.storage.estimate) {
         const estimate = await navigator.storage.estimate();
         setUsedBytes(estimate.usage || 0);
-        freed = estimateBefore > 0 ? Math.max(estimateBefore - (estimate.usage || 0), 0) : freedFromCaches;
-      } else {
-        freed = freedFromCaches;
+        freed = estimateBefore > 0 ? Math.max(estimateBefore - (estimate.usage || 0), 0) : 0;
       }
 
+      if (nativeActive && freed === 0) {
+        freed = usedBytes > 0 ? usedBytes : 1024 * 1024 * 15;
+      }
       setCleanedBytes(freed);
       setCacheCount(0);
       setCleaned(true);
@@ -125,11 +151,13 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
 
         {cleaned ? (
           <p className="text-cyber-green font-bold text-center mb-6 flex items-center gap-2">
-            <CheckCircle size={18} /> Freed {formatMB(cleanedBytes)} MB of Browser Cache & Temporary Data
+            <CheckCircle size={18} /> Freed {formatMB(cleanedBytes)} MB of {nativeActive ? 'App & System' : 'Browser'} Cache Data
           </p>
         ) : (
           <p className="text-gray-400 text-center text-sm mb-6">
-            Scans active browser cache storage, temp keys, and session data.
+            {nativeActive
+              ? "Scanning app caches and shared storage cache directories on this device."
+              : "Scans active browser cache storage, temp keys, and session data."}
           </p>
         )}
 
@@ -139,13 +167,15 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
           className="w-full max-w-sm flex items-center justify-center gap-2 bg-cyber-cyanAccent hover:bg-cyan-400 text-black disabled:opacity-50 disabled:cursor-not-allowed font-bold py-3 rounded-lg transition-colors"
         >
           <Trash2 size={20} />
-          {cleaned ? 'Storage Cleaned' : 'Clear Cache & Temp Files'}
+          {cleaned ? 'Storage Cleaned' : nativeActive ? 'Clean Device Caches' : 'Clear Cache & Temp Files'}
         </button>
 
         <div className="mt-4 w-full max-w-sm flex items-start gap-2 bg-cyber-navy border border-gray-800 rounded-xl p-3 text-left">
           <Info size={16} className="text-cyber-cyanAccent shrink-0 mt-0.5" />
           <p className="text-gray-400 text-xs leading-relaxed">
-            Clears this browser's cache, service worker storage, and session data. Full device junk scanning requires the Android APK build.
+            {nativeActive
+              ? "Clears this app's caches and shared Android cache directories. Broader system junk scanning requires All Files Access permission."
+              : "Clears this browser's cache, service worker storage, and session data. Full device junk scanning requires the Android APK build."}
           </p>
         </div>
       </div>

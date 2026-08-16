@@ -1,5 +1,6 @@
 package com.guard2.app;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Environment;
 import android.provider.Settings;
@@ -75,7 +76,7 @@ public class ScannerPlugin extends Plugin {
     public void isAccessibilityServiceEnabled(PluginCall call) {
         boolean enabled = false;
         int accessibilityEnabled = 0;
-        final String service = getContext().getPackageName() + "/" + CacheAccessibilityService.class.getName();
+        final String service = getContext().getPackageName() + "/" + GuardAccessibilityService.class.getName();
         try {
             accessibilityEnabled = Settings.Secure.getInt(
                     getContext().getApplicationContext().getContentResolver(),
@@ -170,29 +171,80 @@ public class ScannerPlugin extends Plugin {
         long totalSize = 0;
         File cacheDir = getContext().getCacheDir();
         File extCacheDir = getContext().getExternalCacheDir();
-        
+        File codeCacheDir = getContext().getCodeCacheDir();
+
         totalSize += getDirSize(cacheDir);
+        totalSize += getDirSize(codeCacheDir);
         if (extCacheDir != null) {
             totalSize += getDirSize(extCacheDir);
         }
-        
+        // Other apps' cache dirs under shared external storage (requires All Files Access on Android 11+)
+        totalSize += getExternalDataCacheSize();
+
         JSObject ret = new JSObject();
         ret.put("sizeBytes", totalSize);
         ret.put("sizeMB", totalSize / (1024 * 1024));
         call.resolve(ret);
     }
 
+    private long getExternalDataCacheSize() {
+        long size = 0;
+        try {
+            File androidData = new File(Environment.getExternalStorageDirectory(), "Android/data");
+            File[] packages = androidData.listFiles();
+            if (packages != null) {
+                for (File pkg : packages) {
+                    File cache = new File(pkg, "cache");
+                    size += getDirSize(cache);
+                }
+            }
+        } catch (Exception e) {
+            Log.w("ScannerPlugin", "Cannot access external data caches: " + e.getMessage());
+        }
+        return size;
+    }
+
     @PluginMethod
     public void cleanJunk(PluginCall call) {
         File cacheDir = getContext().getCacheDir();
         File extCacheDir = getContext().getExternalCacheDir();
-        
+        File codeCacheDir = getContext().getCodeCacheDir();
+
         deleteDir(cacheDir);
+        deleteDir(codeCacheDir);
         if (extCacheDir != null) {
             deleteDir(extCacheDir);
         }
-        
+        deleteExternalDataCaches();
+        deleteWebViewCaches();
+
         call.resolve();
+    }
+
+    private void deleteExternalDataCaches() {
+        try {
+            File androidData = new File(Environment.getExternalStorageDirectory(), "Android/data");
+            File[] packages = androidData.listFiles();
+            if (packages != null) {
+                for (File pkg : packages) {
+                    File cache = new File(pkg, "cache");
+                    deleteDir(cache);
+                }
+            }
+        } catch (Exception e) {
+            Log.w("ScannerPlugin", "Cannot clear external data caches: " + e.getMessage());
+        }
+    }
+
+    private void deleteWebViewCaches() {
+        try {
+            getContext().getApplicationContext()
+                    .getDir("webview", Context.MODE_PRIVATE);
+            File webview = new File(getContext().getApplicationContext().getFilesDir(), "webview");
+            deleteDir(webview);
+        } catch (Exception e) {
+            Log.w("ScannerPlugin", "Cannot clear webview caches: " + e.getMessage());
+        }
     }
 
     private long getDirSize(File dir) {

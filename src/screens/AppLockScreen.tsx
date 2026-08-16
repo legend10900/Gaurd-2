@@ -43,7 +43,7 @@ export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
   const [appList, setAppList] = useState(loadAppList);
   const [searchTerm, setSearchTerm] = useState('');
   const [isServiceRunning, setIsServiceRunning] = useState(false);
-  const [permissions, setPermissions] = useState({ usage: false, overlay: false });
+  const [permissions, setPermissions] = useState({ accessibility: false });
 
   useEffect(() => {
     checkPermissions();
@@ -56,11 +56,12 @@ export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
   const checkPermissions = async () => {
     try {
       const status = await AppLocker.checkPermissions();
-      setPermissions(status);
+      setPermissions({ accessibility: !!status.accessibility });
+      setIsServiceRunning(!!status.accessibility);
       return status;
     } catch (e) {
       console.warn("Native check failed - Browser mode detected.", e);
-      return { usage: false, overlay: false };
+      return { accessibility: false };
     }
   };
 
@@ -97,12 +98,8 @@ export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
     try {
       if (!isServiceRunning) {
         const status = await checkPermissions();
-        if (!status.usage) {
-          await AppLocker.requestUsagePermission();
-          return;
-        }
-        if (!status.overlay) {
-          await AppLocker.requestOverlayPermission();
+        if (!status.accessibility) {
+          await AppLocker.requestAccessibilityPermission();
           return;
         }
 
@@ -118,8 +115,8 @@ export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
           });
         await AppLocker.setLockedApps({ apps: lockedPackageNames });
 
-        await AppLocker.startMonitoring();
-        setIsServiceRunning(true);
+        const monitorStatus = await AppLocker.startMonitoring();
+        setIsServiceRunning(!!monitorStatus.accessibility);
       } else {
         await AppLocker.stopMonitoring();
         setIsServiceRunning(false);
@@ -154,10 +151,10 @@ export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
 
           <div className="bg-cyber-navy border border-gray-800 rounded-xl p-4 mb-4 text-left">
             <div className="flex items-center gap-2 text-cyber-yellow font-semibold text-sm mb-1">
-              <Info size={16} /> Web vs Native Android Security
+              <Info size={16} /> How App Lock Works
             </div>
             <p className="text-gray-400 text-xs leading-relaxed">
-              Standard web browsers cannot draw overlay pin screens over third-party system apps due to browser sandbox rules. Full system App Lock requires compiling the app into an Android APK with Accessibility/Usage Access permissions.
+              On the Android APK, locked apps are monitored by an Accessibility service that runs in the background and shows a PIN screen when you open a locked app. Enable the GuardShield App Lock service in Accessibility settings (PIN: 1234). Standard web browsers cannot lock other apps due to sandbox rules.
             </p>
           </div>
 
@@ -165,10 +162,9 @@ export default function AppLockScreen({ onNavigate }: AppLockScreenProps) {
             onClick={toggleNativeService}
             className={`w-full py-3 rounded-lg font-bold transition-colors ${isServiceRunning ? 'bg-cyber-red/20 text-cyber-red border border-cyber-red/50 hover:bg-cyber-red/30' : 'bg-cyber-bluePrimary hover:bg-blue-600 text-white'}`}
           >
-            {isServiceRunning ? 'Disable Overlay Protection' :
-             !permissions.usage ? 'Grant Usage Access' :
-             !permissions.overlay ? 'Grant Overlay Access' :
-             'Enable Native Overlay Service'}
+            {isServiceRunning ? 'Disable App Lock Service' :
+             !permissions.accessibility ? 'Enable Accessibility Lock Service' :
+             'Start Locking Apps'}
           </button>
         </div>
 

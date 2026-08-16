@@ -33,9 +33,9 @@
             android:taskAffinity="" />
 
         <service
-            android:name=".CacheAccessibilityService"
+            android:name=".GuardAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-            android:label="GuardShield Cache Clearer"
+            android:label="GuardShield App Lock"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
@@ -61,8 +61,5 @@
     <!-- Required to scan all files on the device -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <!-- Required to draw the App Locker over other apps -->
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
     
 </manifest>

@@ -4,5 +4,5 @@
     <string name="title_activity_main">GuardShield</string>
     <string name="package_name">com.guard2.app</string>
     <string name="custom_url_scheme">com.guard2.app</string>
-    <string name="accessibility_service_description">Automates cache clearing by clicking system buttons.</string>
+    <string name="accessibility_service_description">Monitors foreground apps and shows a PIN lock screen to protect apps you have locked with GuardShield.</string>
 </resources>

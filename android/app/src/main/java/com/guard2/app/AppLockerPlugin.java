@@ -1,12 +1,10 @@
 package com.guard2.app;
 
-import android.app.usage.UsageEvents;
-import android.app.usage.UsageStats;
-import android.app.usage.UsageStatsManager;
 import android.content.Context;
 import android.content.Intent;
-import android.net.Uri;
+import android.content.SharedPreferences;
 import android.provider.Settings;
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.getcapacitor.JSArray;
@@ -18,124 +16,93 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 import org.json.JSONException;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.HashSet;
+import java.util.Set;
 
 @CapacitorPlugin(name = "AppLocker")
 public class AppLockerPlugin extends Plugin {
-    private Timer timer;
-    private List<String> lockedApps = new ArrayList<>();
-    private String lastApp = "";
+    private static final String TAG = "AppLockerPlugin";
+    private static final String PREFS = "guardshield_prefs";
+    private static final String KEY_LOCKED_APPS = "locked_apps";
 
     @PluginMethod
     public void setLockedApps(PluginCall call) {
         JSArray apps = call.getArray("apps");
-        lockedApps.clear();
+        Set<String> locked = new HashSet<String>();
         if (apps != null) {
             try {
                 for (int i = 0; i < apps.length(); i++) {
-                    lockedApps.add(apps.getString(i));
+                    locked.add(apps.getString(i));
                 }
             } catch (JSONException e) {
                 call.reject("Invalid apps array");
                 return;
             }
         }
+        SharedPreferences prefs = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        prefs.edit().putStringSet(KEY_LOCKED_APPS, locked).apply();
+        Log.d(TAG, "Locked apps persisted: " + locked);
         call.resolve();
     }
 
     @PluginMethod
     public void startMonitoring(PluginCall call) {
-        Context context = getContext();
-        final UsageStatsManager usm = (UsageStatsManager) context.getSystemService(Context.USAGE_STATS_SERVICE);
-        
-        if (timer != null) timer.cancel();
-        
-        timer = new Timer();
-        timer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                String foregroundApp = getForegroundApp(usm);
-                if (foregroundApp != null && !foregroundApp.equals(getContext().getPackageName())) {
-                    if (lockedApps.contains(foregroundApp) && !foregroundApp.equals(lastApp)) {
-                        Log.d("AppLocker", "Locking app: " + foregroundApp);
-                        Intent intent = new Intent(getContext(), LockActivity.class);
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                        getContext().startActivity(intent);
-                    }
-                    lastApp = foregroundApp;
-                } else if (foregroundApp != null && foregroundApp.equals(getContext().getPackageName())) {
-                    // Reset lastApp when our app is in foreground to allow re-locking if user switches back
-                    lastApp = "";
-                }
-            }
-        }, 0, 500); // Check every 500ms for better responsiveness
-        
-        call.resolve();
-    }
-    
-    private String getForegroundApp(UsageStatsManager usm) {
-        long time = System.currentTimeMillis();
-        UsageEvents events = usm.queryEvents(time - 2000, time);
-        UsageEvents.Event event = new UsageEvents.Event();
-        String lastPackage = null;
-        while (events.hasNextEvent()) {
-            events.getNextEvent(event);
-            if (event.getEventType() == UsageEvents.Event.MOVE_TO_FOREGROUND) {
-                lastPackage = event.getPackageName();
-            }
-        }
-        return lastPackage;
+        boolean enabled = isAccessibilityServiceEnabled();
+        call.resolve(makeStatus(enabled, true, false));
     }
 
     @PluginMethod
     public void stopMonitoring(PluginCall call) {
-        if (timer != null) timer.cancel();
+        SharedPreferences prefs = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        prefs.edit().putStringSet(KEY_LOCKED_APPS, new HashSet<String>()).apply();
         call.resolve();
     }
-    
+
     @PluginMethod
-    public void requestUsagePermission(PluginCall call) {
-        Intent intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
+    public void requestAccessibilityPermission(PluginCall call) {
+        Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         getContext().startActivity(intent);
         call.resolve();
     }
 
     @PluginMethod
-    public void requestOverlayPermission(PluginCall call) {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            if (!Settings.canDrawOverlays(getContext())) {
-                Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:" + getContext().getPackageName()));
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                getContext().startActivity(intent);
-            }
-        }
-        call.resolve();
+    public void checkPermissions(PluginCall call) {
+        call.resolve(makeStatus(isAccessibilityServiceEnabled(), true, false));
     }
 
-    @PluginMethod
-    public void checkPermissions(PluginCall call) {
+    private JSObject makeStatus(boolean accessibility, boolean usage, boolean overlay) {
         JSObject ret = new JSObject();
-        boolean usage = false;
-        boolean overlay = true;
-
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
-            android.app.AppOpsManager appOps = (android.app.AppOpsManager) getContext().getSystemService(Context.APP_OPS_SERVICE);
-            int mode = appOps.checkOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
-                    android.os.Process.myUid(), getContext().getPackageName());
-            usage = (mode == android.app.AppOpsManager.MODE_ALLOWED);
-        }
-
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            overlay = Settings.canDrawOverlays(getContext());
-        }
-
+        ret.put("accessibility", accessibility);
         ret.put("usage", usage);
         ret.put("overlay", overlay);
-        call.resolve(ret);
+        return ret;
+    }
+
+    private boolean isAccessibilityServiceEnabled() {
+        final String service = getContext().getPackageName() + "/" + GuardAccessibilityService.class.getName();
+        int accessibilityEnabled = 0;
+        try {
+            accessibilityEnabled = Settings.Secure.getInt(
+                    getContext().getContentResolver(),
+                    Settings.Secure.ACCESSIBILITY_ENABLED);
+        } catch (Settings.SettingNotFoundException e) {
+            return false;
+        }
+        if (accessibilityEnabled != 1) return false;
+
+        String settingValue = Settings.Secure.getString(
+                getContext().getContentResolver(),
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+        if (settingValue == null) return false;
+
+        TextUtils.SimpleStringSplitter splitter = new TextUtils.SimpleStringSplitter(':');
+        splitter.setString(settingValue);
+        while (splitter.hasNext()) {
+            if (splitter.next().equalsIgnoreCase(service)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
