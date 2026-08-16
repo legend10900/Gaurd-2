@@ -25,26 +25,6 @@
 
         </activity>
 
-        <activity
-            android:name=".LockActivity"
-            android:theme="@style/AppTheme.NoActionBar"
-            android:excludeFromRecents="true"
-            android:noHistory="true"
-            android:taskAffinity="" />
-
-        <service
-            android:name=".GuardAccessibilityService"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-            android:label="GuardShield App Lock"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_service_config" />
-        </service>
-
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

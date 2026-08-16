@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Trash2, HardDrive, Cpu, CheckCircle, Info } from 'lucide-react';
+import { Trash2, HardDrive, Cpu, CheckCircle, Info, FolderOpen } from 'lucide-react';
 import { registerPlugin } from '@capacitor/core';
 import CyberHeader from '../components/CyberHeader';
 import { Screen } from '../App';
@@ -8,6 +8,11 @@ const DeviceScanner = registerPlugin<any>('DeviceScanner');
 
 interface JunkCleanerScreenProps {
   onNavigate: (screen: Screen) => void;
+}
+
+interface JunkApp {
+  package: string;
+  sizeBytes: number;
 }
 
 export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps) {
@@ -19,20 +24,33 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
   const [cleaned, setCleaned] = useState(false);
   const [cacheCount, setCacheCount] = useState<number>(0);
   const [nativeActive, setNativeActive] = useState(false);
+  const [junkApps, setJunkApps] = useState<JunkApp[]>([]);
 
   useEffect(() => {
-    scanStorage();
+    checkStorageAccessAndScan();
   }, []);
 
-  const scanStorage = async () => {
+  const checkStorageAccessAndScan = async () => {
     setIsScanning(true);
     setCleaned(false);
     try {
-      // 1. Native scan (Android APK)
+      // In the Android APK, request All Files Access first so we can read other apps' caches
       try {
-        const result = await DeviceScanner.getJunkSize();
-        if (result && result.sizeBytes > 0) {
-          setUsedBytes(result.sizeBytes);
+        await DeviceScanner.requestStoragePermission();
+      } catch (e) {
+        console.warn("Native storage permission flow not available (browser mode)");
+      }
+
+      // 1. Native scan (Android APK) - SD Maid style per-app cache listing
+      try {
+        const result = await DeviceScanner.getJunkApps();
+        if (result && Array.isArray(result.packages)) {
+          const apps: JunkApp[] = result.packages.map((pkg: string, i: number) => ({
+            package: pkg,
+            sizeBytes: result.sizes[i] || 0,
+          })).filter(a => a.sizeBytes > 0);
+          setJunkApps(apps);
+          setUsedBytes(result.totalBytes || 0);
           setNativeActive(true);
         }
       } catch (e) {
@@ -60,7 +78,7 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
     setIsCleaning(true);
     let freed = 0;
     try {
-      // 1. Native clean (Android APK) - clears app + shared caches
+      // 1. Native clean (Android APK) - clears other apps' cache directories
       try {
         await DeviceScanner.cleanJunk();
         setNativeActive(true);
@@ -90,6 +108,7 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
         freed = usedBytes > 0 ? usedBytes : 1024 * 1024 * 15;
       }
       setCleanedBytes(freed);
+      setJunkApps([]);
       setCacheCount(0);
       setCleaned(true);
     } catch (err) {
@@ -100,6 +119,8 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
   };
 
   const formatMB = (bytes: number) => (bytes / (1024 * 1024)).toFixed(2);
+
+  const shortPkg = (pkg: string) => pkg.replace(/^com\./, '').replace(/^org\./, '').split('.').slice(0, 2).join('.');
 
   return (
     <div className="flex flex-col p-4 md:p-6 h-screen overflow-y-auto pb-24">
@@ -128,7 +149,7 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
           {isScanning ? (
             <div className="text-center">
               <span className="text-2xl font-mono text-cyber-cyanAccent font-bold">Scanning</span>
-              <p className="text-xs text-gray-500 uppercase mt-1">Analyzing Storage</p>
+              <p className="text-xs text-gray-500 uppercase mt-1">Analyzing Caches</p>
             </div>
           ) : isCleaning ? (
             <div className="text-center">
@@ -144,19 +165,19 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
             <div className="text-center">
               <span className="text-3xl font-mono text-cyber-cyanAccent font-bold">{formatMB(usedBytes)}</span>
               <span className="text-sm font-mono text-cyber-cyanAccent ml-1">MB</span>
-              <p className="text-xs text-gray-500 uppercase mt-1">Storage Usage</p>
+              <p className="text-xs text-gray-500 uppercase mt-1">Cache Data</p>
             </div>
           )}
         </div>
 
         {cleaned ? (
           <p className="text-cyber-green font-bold text-center mb-6 flex items-center gap-2">
-            <CheckCircle size={18} /> Freed {formatMB(cleanedBytes)} MB of {nativeActive ? 'App & System' : 'Browser'} Cache Data
+            <CheckCircle size={18} /> Freed {formatMB(cleanedBytes)} MB of {nativeActive ? 'App Cache Data' : 'Browser Cache Data'}
           </p>
         ) : (
           <p className="text-gray-400 text-center text-sm mb-6">
             {nativeActive
-              ? "Scanning app caches and shared storage cache directories on this device."
+              ? `Found ${junkApps.length} app(s) with cache data. Grant All Files Access for full coverage.`
               : "Scans active browser cache storage, temp keys, and session data."}
           </p>
         )}
@@ -167,18 +188,38 @@ export default function JunkCleanerScreen({ onNavigate }: JunkCleanerScreenProps
           className="w-full max-w-sm flex items-center justify-center gap-2 bg-cyber-cyanAccent hover:bg-cyan-400 text-black disabled:opacity-50 disabled:cursor-not-allowed font-bold py-3 rounded-lg transition-colors"
         >
           <Trash2 size={20} />
-          {cleaned ? 'Storage Cleaned' : nativeActive ? 'Clean Device Caches' : 'Clear Cache & Temp Files'}
+          {cleaned ? 'Storage Cleaned' : nativeActive ? 'Clear App Caches' : 'Clear Cache & Temp Files'}
         </button>
 
         <div className="mt-4 w-full max-w-sm flex items-start gap-2 bg-cyber-navy border border-gray-800 rounded-xl p-3 text-left">
           <Info size={16} className="text-cyber-cyanAccent shrink-0 mt-0.5" />
           <p className="text-gray-400 text-xs leading-relaxed">
             {nativeActive
-              ? "Clears this app's caches and shared Android cache directories. Broader system junk scanning requires All Files Access permission."
-              : "Clears this browser's cache, service worker storage, and session data. Full device junk scanning requires the Android APK build."}
+              ? "Only cache directories are cleared - app data, downloads, and settings are never touched."
+              : "Clears this browser's cache, service worker storage, and session data. Full device cache scanning requires the Android APK build."}
           </p>
         </div>
       </div>
+
+      {nativeActive && !cleaned && junkApps.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-lg font-bold text-white uppercase tracking-wide mb-4 flex items-center gap-2">
+            <FolderOpen className="text-cyber-cyanAccent" size={20} /> Apps With Cache Data
+          </h2>
+          
+          <div className="space-y-2">
+            {junkApps.map(app => (
+              <div key={app.package} className="bg-cyber-navy p-4 rounded-xl border border-gray-800 flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <HardDrive className="text-cyber-bluePrimary shrink-0" size={18} />
+                  <span className="text-white font-mono text-sm truncate">{shortPkg(app.package)}</span>
+                </div>
+                <span className="text-cyber-cyanAccent font-mono text-sm shrink-0">{formatMB(app.sizeBytes)} MB</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-cyber-navy p-5 rounded-2xl border border-gray-800 flex items-center gap-4">

@@ -18,7 +18,6 @@ import java.io.FileInputStream;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 
-import android.text.TextUtils;
 import android.util.Log;
 
 import android.content.IntentFilter;
@@ -70,47 +69,6 @@ public class ScannerPlugin extends Plugin {
         } catch (Exception e) {
             call.reject("Hash calculation failed: " + e.getMessage());
         }
-    }
-
-    @PluginMethod
-    public void isAccessibilityServiceEnabled(PluginCall call) {
-        boolean enabled = false;
-        int accessibilityEnabled = 0;
-        final String service = getContext().getPackageName() + "/" + GuardAccessibilityService.class.getName();
-        try {
-            accessibilityEnabled = Settings.Secure.getInt(
-                    getContext().getApplicationContext().getContentResolver(),
-                    android.provider.Settings.Secure.ACCESSIBILITY_ENABLED);
-        } catch (Settings.SettingNotFoundException e) {
-            Log.e("ScannerPlugin", "Error finding setting, default is off", e);
-        }
-        TextUtils.SimpleStringSplitter mStringColonSplitter = new TextUtils.SimpleStringSplitter(':');
-
-        if (accessibilityEnabled == 1) {
-            String settingValue = Settings.Secure.getString(
-                    getContext().getApplicationContext().getContentResolver(),
-                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-            if (settingValue != null) {
-                mStringColonSplitter.setString(settingValue);
-                while (mStringColonSplitter.hasNext()) {
-                    String accessibilityService = mStringColonSplitter.next();
-                    if (accessibilityService.equalsIgnoreCase(service)) {
-                        enabled = true;
-                    }
-                }
-            }
-        }
-        JSObject ret = new JSObject();
-        ret.put("enabled", enabled);
-        call.resolve(ret);
-    }
-
-    @PluginMethod
-    public void requestAccessibilityPermission(PluginCall call) {
-        Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        getContext().startActivity(intent);
-        call.resolve();
     }
 
     @PluginMethod
@@ -184,6 +142,45 @@ public class ScannerPlugin extends Plugin {
         JSObject ret = new JSObject();
         ret.put("sizeBytes", totalSize);
         ret.put("sizeMB", totalSize / (1024 * 1024));
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void getJunkApps(PluginCall call) {
+        ArrayList<String> packages = new ArrayList<>();
+        ArrayList<Long> sizes = new ArrayList<>();
+        long totalSize = 0;
+
+        try {
+            File androidData = new File(Environment.getExternalStorageDirectory(), "Android/data");
+            File[] dirs = androidData.listFiles();
+            if (dirs != null) {
+                for (File pkg : dirs) {
+                    File cache = new File(pkg, "cache");
+                    long size = getDirSize(cache);
+                    if (size > 0) {
+                        packages.add(pkg.getName());
+                        sizes.add(size);
+                        totalSize += size;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.w("ScannerPlugin", "Cannot list external data caches: " + e.getMessage());
+        }
+
+        // Include our own app cache
+        long ownSize = getDirSize(getContext().getCacheDir());
+        if (ownSize > 0) {
+            packages.add(getContext().getPackageName());
+            sizes.add(ownSize);
+            totalSize += ownSize;
+        }
+
+        JSObject ret = new JSObject();
+        ret.put("packages", new JSArray(packages));
+        ret.put("sizes", new JSArray(sizes));
+        ret.put("totalBytes", totalSize);
         call.resolve(ret);
     }
 

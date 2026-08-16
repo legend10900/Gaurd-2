@@ -4,7 +4,6 @@ import {
   Wifi, 
   Thermometer, 
   Trash2, 
-  Lock, 
   AlertTriangle, 
   Fish
 } from 'lucide-react';
@@ -167,14 +166,6 @@ export default function DashboardScreen({ onNavigate }: DashboardScreenProps) {
           badgeText="1204 MB Junk"
           accentColor="#00ffff"
           onClick={() => onNavigate('junkcleaner')}
-        />
-        <CyberModuleCard
-          title="App Locker"
-          subtitle="Lock sensitive apps with PIN & Biometrics"
-          icon={Lock}
-          badgeText="Privacy"
-          accentColor="#00b3b3"
-          onClick={() => onNavigate('applock')}
         />
         <CyberModuleCard
           title="Data Breach Monitor"

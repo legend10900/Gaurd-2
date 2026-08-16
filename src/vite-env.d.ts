@@ -9,14 +9,8 @@ declare module '@capacitor/core' {
     requestStoragePermission(): Promise<void>;
     scanAllFiles(): Promise<{ files: string[] }>;
     getJunkSize(): Promise<{ sizeBytes: number; sizeMB: number }>;
+    getJunkApps(): Promise<{ packages: string[]; sizes: number[]; totalBytes: number }>;
     cleanJunk(): Promise<void>;
-  }
-
-  export interface AppLockerPlugin {
-    requestUsagePermission(): Promise<void>;
-    setLockedApps(options: { apps: string[] }): Promise<void>;
-    startMonitoring(): Promise<void>;
-    stopMonitoring(): Promise<void>;
   }
 
   export interface NetworkAuditPlugin {

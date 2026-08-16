@@ -6,9 +6,8 @@ import JunkCleanerScreen from './screens/JunkCleanerScreen';
 import BatteryCoolerScreen from './screens/BatteryCoolerScreen';
 import PhishingScreen from './screens/PhishingScreen';
 import NetworkScreen from './screens/NetworkScreen';
-import AppLockScreen from './screens/AppLockScreen';
 
-export type Screen = 'dashboard' | 'antivirus' | 'databreach' | 'junkcleaner' | 'batterycooler' | 'phishing' | 'network' | 'applock';
+export type Screen = 'dashboard' | 'antivirus' | 'databreach' | 'junkcleaner' | 'batterycooler' | 'phishing' | 'network';
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('dashboard');
@@ -33,8 +32,6 @@ function App() {
         return <PhishingScreen onNavigate={navigate} />;
       case 'network':
         return <NetworkScreen onNavigate={navigate} />;
-      case 'applock':
-        return <AppLockScreen onNavigate={navigate} />;
       default:
         return <DashboardScreen onNavigate={navigate} />;
     }
